@@ -1,16 +1,54 @@
+/*
+
+BalanceBot_Test.ino  --  Test code for robot I'm building with @PickyBiker (forum.arduino.cc)
+     Copyright (C) 2023  David C.
+
+     This program is free software: you can redistribute it and/or modify
+     it under the terms of the GNU General Public License as published by
+     the Free Software Foundation, either version 3 of the License, or
+     (at your option) any later version.
+
+     This program is distributed in the hope that it will be useful,
+     but WITHOUT ANY WARRANTY; without even the implied warranty of
+     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+     GNU General Public License for more details.
+
+     You should have received a copy of the GNU General Public License
+     along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+     */
+
+
+#include "GPT_Stepper.h"
 
 #include "ICM_20948.h"
 
 #define WIRE_PORT Wire1
 #define AD0_VAL 1
 
+const uint8_t rightStepPin = 2;
+const uint8_t rightDirPin = 5;
+const uint8_t leftStepPin = 4;
+const uint8_t leftDirPin = 7;
+
+GPT_Stepper leftStepper(leftStepPin, leftDirPin, 17000.0);
+GPT_Stepper rightStepper(rightStepPin, rightDirPin, 17000.0);
+
+float speed = 10000.0;
+
+
+
 ICM_20948_I2C icm;
+icm_20948_DMP_data_t data;
 
 void setup() {
-
   Serial.begin(115200);
   delay(500);
-  Serial.println("\n\nICM_Test\n\n");
+  Serial.println("\n\nStarting BalanceBot_Test.ino\n\n");
+
+  leftStepper.init();
+  rightStepper.init();
+
   WIRE_PORT.begin();
   WIRE_PORT.setClock(400000);
 
@@ -18,15 +56,26 @@ void setup() {
 }
 
 void loop() {
-  static uint32_t lastMicros = micros();
-  if (newData()) {
-    Serial.println(readPitch());
-    uint32_t time = micros();
-    Serial.println(time - lastMicros);
-    lastMicros = time;
-  }
+  controlLoop();
 }
 
+
+float pitchToSpeed(float pitch) {
+  float pmin = -45.0;
+  float pmax = 45.0;
+  float smin = -10000;
+  float smax = 10000;
+
+  return (pitch - pmin) * (smax - smin) / (pmax - pmin) + smin;
+}
+
+void controlLoop() {
+  if (newData()) {
+    float speed = pitchToSpeed(readPitch());
+    leftStepper.setSpeed(speed);
+    rightStepper.setSpeed(speed);
+  }
+}
 
 void setupIMU() {
   bool initialized = false;
@@ -77,7 +126,7 @@ void setupIMU() {
   }
 }
 
-icm_20948_DMP_data_t data;
+
 bool newData() {
   icm.readDMPdataFromFIFO(&data);
 
