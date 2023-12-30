@@ -31,8 +31,8 @@ const uint8_t rightDirPin = 5;
 const uint8_t leftStepPin = 4;
 const uint8_t leftDirPin = 7;
 
-GPT_Stepper leftStepper(leftStepPin, leftDirPin, 17000.0);
-GPT_Stepper rightStepper(rightStepPin, rightDirPin, 17000.0);
+GPT_Stepper leftStepper(leftStepPin, leftDirPin, 17000.0, true);
+GPT_Stepper rightStepper(rightStepPin, rightDirPin, 17000.0, false);
 
 float speed = 10000.0;
 
