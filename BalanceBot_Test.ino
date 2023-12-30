@@ -30,6 +30,8 @@ BalanceBot_Test.ino  --  Test code for robot I'm building with @PickyBiker (foru
 #include "arduino_secrets.h"
 #include "FormUpdatable.h"
 
+#include <TimerOne.h>
+
 #define WIRE_PORT Wire1
 #define AD0_VAL 1
 
@@ -46,19 +48,25 @@ const uint8_t rightDirPin = 5;
 const uint8_t leftStepPin = 4;
 const uint8_t leftDirPin = 7;
 
-GPT_Stepper leftStepper(leftStepPin, leftDirPin, 17000.0, true);
-GPT_Stepper rightStepper(rightStepPin, rightDirPin, 17000.0, false);
+GPT_Stepper leftStepper(leftStepPin, leftDirPin, 100000, true);
+GPT_Stepper rightStepper(rightStepPin, rightDirPin, 100000, false);
 
-float speed = 10000.0;
+int enable = 0;
+int enabled = 0;
 
 double Setpoint, Input, Output;
-double Kp = 2;
+double Kp = 20;
 double Ki = 0;
 double Kd = 0;
 
+const float maxSpeed = 10000.0;
+float speed;
+
+FormUpdatableValue fuSp(Setpoint, "Setpoint");
 FormUpdatableValue fuKp(Kp, "Kp");
 FormUpdatableValue fuKi(Ki, "Ki");
 FormUpdatableValue fuKd(Kd, "Kd");
+FormUpdatableValue fuEn(enable, "enable");
 
 PID anglePID(&Input, &Output, &Setpoint, Kp, Ki, Kd, DIRECT);
 
@@ -69,48 +77,77 @@ void setup() {
   Serial.begin(115200);
   delay(500);
   Serial.println("\n\nStarting BalanceBot_Test.ino\n\n");
+  WIRE_PORT.begin();
+  WIRE_PORT.setClock(400000);
   setupIMU();
   startWiFi();
   server.begin();
 
   leftStepper.init();
   rightStepper.init();
+  leftStepper.setSpeed(0);
+  rightStepper.setSpeed(0);
 
-  WIRE_PORT.begin();
-  WIRE_PORT.setClock(400000);
-
-  
   Setpoint = 0.0;
   anglePID.SetOutputLimits(-34000, 34000);
   anglePID.SetSampleTime(20);
   Input = readPitch();
   anglePID.SetMode(AUTOMATIC);
+
+  Timer1.initialize(20000);
+  Timer1.attachInterrupt(controlLoop);
 }
 
 void loop() {
   handleClient();
-  controlLoop();
+  // controlLoop();
 }
 
-void accelerate(double acc){
-  leftStepper.setAcceleration((acc>=0.0)? acc:-acc);
-  rightStepper.setAcceleration((acc>=0.0)? acc:-acc);
-  if(acc < 0){
-    leftStepper.setSpeed(-15000);
-    rightStepper.setSpeed(-15000);
-  } else if (acc > 0){
-    leftStepper.setSpeed(15000);
-    rightStepper.setSpeed(15000);
+void accelerate(double acc) {
+  speed -= acc;
+  if (speed > maxSpeed) {
+    speed = maxSpeed;
   }
+  if (speed < -maxSpeed) {
+    speed = -maxSpeed;
+  }
+  leftStepper.setSpeed(speed);
+  rightStepper.setSpeed(speed);
+  // noInterrupts();
+  // leftStepper.setAcceleration((acc >= 0.0) ? acc : -acc);
+  // rightStepper.setAcceleration((acc >= 0.0) ? acc : -acc);
+  // if (acc < 0) {
+  //   leftStepper.setSpeed(-10000);
+  //   rightStepper.setSpeed(-10000);
+  // } else if (acc > 0) {
+  //   leftStepper.setSpeed(10000);
+  //   rightStepper.setSpeed(10000);
+  // }
+  // interrupts();
 }
 
 
 void controlLoop() {
   if (newData()) {
-    anglePID.SetTunings(Kp, Ki, Kd);
     Input = readPitch();
-    anglePID.Compute();
-    accelerate(Output);
+    if (enable != enabled) {
+      enabled = enable;
+      if (enabled) {
+        anglePID.SetMode(AUTOMATIC);
+      } else {
+        anglePID.SetMode(MANUAL);
+        Output = 0;
+        leftStepper.stop();
+        rightStepper.stop();
+        // leftStepper.setAcceleration(0);
+        // rightStepper.setAcceleration(0);
+      }
+    }
+    if (enabled) {
+      anglePID.SetTunings(Kp, Ki, Kd);
+      anglePID.Compute();
+      accelerate(Output);
+    }
   }
 }
 
@@ -219,12 +256,12 @@ double readPitch() {
 }
 
 
-void handleClient(){
+void handleClient() {
 
   WiFiClient client = server.available();
 
   if (client) {
-    char currentLine[64] = {0};
+    char currentLine[64] = { 0 };
     uint8_t idx = 0;
     while (client.connected()) {
       delayMicroseconds(10);
@@ -245,8 +282,12 @@ void handleClient(){
             // the content of the HTTP response follows the header:
             client.print("<p>Use the forms below to set values</p>");
             client.print("<br>");
+            client.print("<a href='/'>Reload</a>");
+            client.print("<p>Current Pitch: ");
+            client.print(Input);
+            client.print("</p>");
 
-            // Show a list of forms 
+            // Show a list of forms
             FormUpdatable::listForms(&client);
 
             // The HTTP response ends with another blank line:
