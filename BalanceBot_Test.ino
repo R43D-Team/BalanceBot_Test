@@ -30,7 +30,7 @@ BalanceBot_Test.ino  --  Test code for robot I'm building with @PickyBiker (foru
 #include "arduino_secrets.h"
 #include "FormUpdatable.h"
 
-#include <TimerOne.h>
+// #include <TimerOne.h>
 
 #define WIRE_PORT Wire1
 #define AD0_VAL 1
@@ -48,16 +48,16 @@ const uint8_t rightDirPin = 5;
 const uint8_t leftStepPin = 4;
 const uint8_t leftDirPin = 7;
 
-GPT_Stepper leftStepper(leftStepPin, leftDirPin, 100000, true);
-GPT_Stepper rightStepper(rightStepPin, rightDirPin, 100000, false);
+GPT_Stepper leftStepper(leftStepPin, leftDirPin, 34000, true);
+GPT_Stepper rightStepper(rightStepPin, rightDirPin, 34000, false);
 
 int enable = 0;
 int enabled = 0;
 
 double Setpoint, Input, Output;
-double Kp = 20;
+double Kp = 50.0;
 double Ki = 0;
-double Kd = 0;
+double Kd = 3.0;
 
 const float maxSpeed = 10000.0;
 float speed;
@@ -73,7 +73,18 @@ PID anglePID(&Input, &Output, &Setpoint, Kp, Ki, Kd, DIRECT);
 ICM_20948_I2C icm;
 icm_20948_DMP_data_t data;
 
+uint8_t heartLed = LED_BUILTIN;
+unsigned long heartDelay = 1000;
+
 void setup() {
+  //  Three flashes to start program:
+  pinMode(heartLed, OUTPUT);
+  for (int i = 0; i < 3; i++) {
+    delay(100);
+    digitalWrite(heartLed, HIGH);
+    delay(100);
+    digitalWrite(heartLed, LOW);
+  }
   Serial.begin(115200);
   delay(500);
   Serial.println("\n\nStarting BalanceBot_Test.ino\n\n");
@@ -94,13 +105,34 @@ void setup() {
   Input = readPitch();
   anglePID.SetMode(AUTOMATIC);
 
-  Timer1.initialize(20000);
-  Timer1.attachInterrupt(controlLoop);
+  // Timer1.initialize(20000);
+  // Timer1.attachInterrupt(controlLoop);
+
+  analogReference(AR_INTERNAL);
+  // Three more flashes at end of setup.
+  for (int i = 0; i < 3; i++) {
+    delay(100);
+    digitalWrite(heartLed, HIGH);
+    delay(100);
+    digitalWrite(heartLed, LOW);
+  }
 }
 
 void loop() {
   handleClient();
-  // controlLoop();
+  controlLoop();
+  heartbeat();
+}
+
+void heartbeat() {
+  static unsigned long pm = millis();
+  unsigned long cm = millis();
+  if (cm - pm >= heartDelay) {
+    pm = cm;
+    static uint8_t state = LOW;
+    state = 1 - state;
+    digitalWrite(heartLed, state);
+  }
 }
 
 void accelerate(double acc) {
@@ -149,6 +181,10 @@ void controlLoop() {
       accelerate(Output);
     }
   }
+}
+
+float readBattery() {
+  return analogRead(A3) * (1.45 / 1023.0) * 12.915;
 }
 
 void setupIMU() {
@@ -283,6 +319,9 @@ void handleClient() {
             client.print("<p>Use the forms below to set values</p>");
             client.print("<br>");
             client.print("<a href='/'>Reload</a>");
+            client.print("<p>V-Batt: ");
+            client.print(readBattery());
+            client.print("</p>");
             client.print("<p>Current Pitch: ");
             client.print(Input);
             client.print("</p>");
