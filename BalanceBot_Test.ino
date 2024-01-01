@@ -30,8 +30,6 @@ BalanceBot_Test.ino  --  Test code for robot I'm building with @PickyBiker (foru
 #include "arduino_secrets.h"
 #include "FormUpdatable.h"
 
-// #include <TimerOne.h>
-
 #define WIRE_PORT Wire1
 #define AD0_VAL 1
 
@@ -42,6 +40,7 @@ char pass[] = SECRET_PASS;  // your network password (use for WPA, or use as key
 int status = WL_IDLE_STATUS;
 WiFiServer server(2080);
 IPAddress ipAddress(192, 168, 1, 81);
+WiFiClient client;
 
 const uint8_t rightStepPin = 2;
 const uint8_t rightDirPin = 5;
@@ -93,7 +92,7 @@ void setup() {
   delay(500);
   Serial.println("\n\nStarting BalanceBot_Test.ino\n\n");
   WIRE_PORT.begin();
-  WIRE_PORT.setClock(400000);
+  WIRE_PORT.setClock(1000000);
   setupIMU();
   startWiFi();
   server.begin();
@@ -108,9 +107,6 @@ void setup() {
   anglePID.SetSampleTime(20);
   Input = readPitch();
   anglePID.SetMode(AUTOMATIC);
-
-  // Timer1.initialize(20000);
-  // Timer1.attachInterrupt(controlLoop);
 
   analogReference(AR_INTERNAL);
   // Three more flashes at end of setup.
@@ -260,8 +256,8 @@ bool newData() {
   icm.readDMPdataFromFIFO(&data);
   controlLoopIntervalOverride = false;
   if ((icm.status == ICM_20948_Stat_Ok) || (icm.status == ICM_20948_Stat_FIFOMoreDataAvail))  // Was valid data available?
-  {    
-    if(icm.status == ICM_20948_Stat_FIFOMoreDataAvail){
+  {
+    if (icm.status == ICM_20948_Stat_FIFOMoreDataAvail) {
       controlLoopIntervalOverride = true;
     }
     return true;
@@ -316,13 +312,12 @@ double readPitch() {
 
 void handleClient() {
 
-  WiFiClient client = server.available();
-
   if (client) {
-    char currentLine[64] = { 0 };
-    uint8_t idx = 0;
-    while (client.connected()) {
-      delayMicroseconds(10);
+    static char currentLine[64] = { 0 };
+    static uint8_t idx = 0;
+    static bool finished = false;
+    if (client.connected() && !finished) {
+      // delayMicroseconds(10);
       if (client.available()) {
         char c = client.read();
         // Serial.write(c);
@@ -354,7 +349,7 @@ void handleClient() {
             // The HTTP response ends with another blank line:
             client.println();
             // break out of the while loop:
-            break;
+            finished = true;
           } else {  // if you got a newline, then clear currentLine:
             // char buf[101];
             // currentLine.toCharArray(buf, 100);
@@ -369,9 +364,13 @@ void handleClient() {
           }
         }
       }
+    } else {
+      // close the connection:
+      client.stop();
+      finished = false;
     }
-    // close the connection:
-    client.stop();
+  } else {
+    client = server.available();
   }
 }
 
