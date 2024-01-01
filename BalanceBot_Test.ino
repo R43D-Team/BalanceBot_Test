@@ -59,9 +59,10 @@ double Kp = 50.0;
 double Ki = 0;
 double Kd = 3.0;
 
-const float maxSpeed = 10000.0;
+float maxSpeed = 10000.0;
 float speed;
 
+FormUpdatableValue fuMs(maxSpeed, "maxSpeed");
 FormUpdatableValue fuSp(Setpoint, "Setpoint");
 FormUpdatableValue fuKp(Kp, "Kp");
 FormUpdatableValue fuKi(Ki, "Ki");
@@ -75,6 +76,9 @@ icm_20948_DMP_data_t data;
 
 uint8_t heartLed = LED_BUILTIN;
 unsigned long heartDelay = 1000;
+
+unsigned long controlLoopInterval = 10;
+bool controlLoopIntervalOverride = false;
 
 void setup() {
   //  Three flashes to start program:
@@ -120,8 +124,13 @@ void setup() {
 
 void loop() {
   handleClient();
-  controlLoop();
   heartbeat();
+  static uint32_t pm = millis();
+  uint32_t cm = millis();
+  if (controlLoopIntervalOverride || (cm - pm >= controlLoopInterval)) {
+    pm = cm;
+    controlLoop();
+  }
 }
 
 void heartbeat() {
@@ -162,6 +171,9 @@ void accelerate(double acc) {
 void controlLoop() {
   if (newData()) {
     Input = readPitch();
+    if ((Input > 45.0) || (Input < -45.0)) {
+      enable = false;
+    }
     if (enable != enabled) {
       enabled = enable;
       if (enabled) {
@@ -177,6 +189,13 @@ void controlLoop() {
     }
     if (enabled) {
       anglePID.SetTunings(Kp, Ki, Kd);
+      static double oldSetpoint = 0;
+      // Reinitialize if setpoint changes
+      if (Setpoint != oldSetpoint) {
+        oldSetpoint = Setpoint;
+        anglePID.SetMode(MANUAL);
+        anglePID.SetMode(AUTOMATIC);
+      }
       anglePID.Compute();
       accelerate(Output);
     }
@@ -239,9 +258,12 @@ void setupIMU() {
 
 bool newData() {
   icm.readDMPdataFromFIFO(&data);
-
+  controlLoopIntervalOverride = false;
   if ((icm.status == ICM_20948_Stat_Ok) || (icm.status == ICM_20948_Stat_FIFOMoreDataAvail))  // Was valid data available?
-  {
+  {    
+    if(icm.status == ICM_20948_Stat_FIFOMoreDataAvail){
+      controlLoopIntervalOverride = true;
+    }
     return true;
   }
   return false;
