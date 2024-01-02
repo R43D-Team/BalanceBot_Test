@@ -71,6 +71,8 @@ bool controlLoopIntervalOverride = false;
 bool imuCalibrated = false;
 uint32_t imuCalSaveTime = 0;
 
+bool standing;
+
 void setup() {
   //  Three flashes to start program:
   pinMode(heartLed, OUTPUT);
@@ -119,7 +121,7 @@ void loop() {
     pm = cm;
     controlLoop();
   }
-  if(!imuCalibrated && (millis() - imuCalSaveTime > 120000)){
+  if (!imuCalibrated && (millis() - imuCalSaveTime > 120000)) {
     imuCalibrated = saveBiasStore();
     imuCalSaveTime = millis();
   }
@@ -152,9 +154,6 @@ void accelerate(double acc) {
 void controlLoop() {
   if (newData()) {
     Input = readPitch();
-    if ((Input > 45.0) || (Input < -45.0)) {
-      enable = false;
-    }
     if (enable != enabled) {
       enabled = enable;
       if (enabled) {
@@ -167,16 +166,27 @@ void controlLoop() {
       }
     }
     if (enabled) {
-      anglePID.SetTunings(Kp, Ki, Kd);
-      static double oldSetpoint = 0;
-      // Reinitialize if setpoint changes
-      if (Setpoint != oldSetpoint) {
-        oldSetpoint = Setpoint;
-        anglePID.SetMode(MANUAL);
-        anglePID.SetMode(AUTOMATIC);
+      if ((Input > 45.0) || (Input < -45.0)) {
+        standing = false;
+        leftStepper.stop();
+        rightStepper.stop();
       }
-      anglePID.Compute();
-      accelerate(Output);
+      if (standing) {
+        anglePID.SetTunings(Kp, Ki, Kd);
+        static double oldSetpoint = 0;
+        // Reinitialize if setpoint changes
+        if (Setpoint != oldSetpoint) {
+          oldSetpoint = Setpoint;
+          anglePID.SetMode(MANUAL);
+          anglePID.SetMode(AUTOMATIC);
+        }
+        anglePID.Compute();
+        accelerate(Output);
+      } else {
+        if ((Input > -5.0) && (Input < 5.0)) {
+          standing = true;
+        }
+      }
     }
   }
 }
@@ -184,5 +194,3 @@ void controlLoop() {
 float readBattery() {
   return analogRead(A3) * (1.45 / 1023.0) * 12.915;
 }
-
-

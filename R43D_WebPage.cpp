@@ -42,7 +42,7 @@ void handleClient() {
             client.print(readBattery());
             client.print("</p>");
             client.print("<p>IMU Calibrated: ");
-            client.print(imuCalibrated? "True" :"False");
+            client.print(imuCalibrated ? "True" : "False");
             client.print("</p>");
             client.print("<p>Current Pitch: ");
             client.print(Input);
@@ -75,7 +75,11 @@ void handleClient() {
       finished = false;
     }
   } else {
-    client = server.available();
+    static uint32_t lastAttempt = millis();
+    if (millis() - lastAttempt >= 100) {
+      client = server.available();
+      lastAttempt = millis();
+    }
   }
 }
 
