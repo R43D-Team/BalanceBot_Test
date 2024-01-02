@@ -10,6 +10,7 @@ IPAddress ipAddress(192, 168, 1, 81);
 WiFiClient client;
 
 extern double Input;
+extern bool imuCalibrated;
 
 void handleClient() {
 
@@ -39,6 +40,9 @@ void handleClient() {
             client.print("<a href='/'>Reload</a>");
             client.print("<p>V-Batt: ");
             client.print(readBattery());
+            client.print("</p>");
+            client.print("<p>IMU Calibrated: ");
+            client.print(imuCalibrated? "True" :"False");
             client.print("</p>");
             client.print("<p>Current Pitch: ");
             client.print(Input);

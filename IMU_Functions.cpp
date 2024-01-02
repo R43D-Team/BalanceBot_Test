@@ -111,3 +111,79 @@ double readPitch() {
 
   return pitch;
 }
+
+void updateBiasStoreSum(biasStore *store)  // Update the bias store checksum
+{
+  int32_t sum = store->header;
+  sum += store->biasGyroX;
+  sum += store->biasGyroY;
+  sum += store->biasGyroZ;
+  sum += store->biasAccelX;
+  sum += store->biasAccelY;
+  sum += store->biasAccelZ;
+  sum += store->biasCPassX;
+  sum += store->biasCPassY;
+  sum += store->biasCPassZ;
+  store->sum = sum;
+}
+
+bool isBiasStoreValid(biasStore *store)  // Returns true if the header and checksum are valid
+{
+  int32_t sum = store->header;
+
+  if (sum != 0x42)
+    return false;
+
+  sum += store->biasGyroX;
+  sum += store->biasGyroY;
+  sum += store->biasGyroZ;
+  sum += store->biasAccelX;
+  sum += store->biasAccelY;
+  sum += store->biasAccelZ;
+  sum += store->biasCPassX;
+  sum += store->biasCPassY;
+  sum += store->biasCPassZ;
+
+  return (store->sum == sum);
+}
+
+bool loadBiasStore() {
+  biasStore store;
+  EEPROM.get(EEPROM_BIAS_STORE, store);
+  bool success = isBiasStoreValid(&store);
+  if (success) {
+    success &= (icm.setBiasGyroX(store.biasGyroX) == ICM_20948_Stat_Ok);
+    success &= (icm.setBiasGyroY(store.biasGyroY) == ICM_20948_Stat_Ok);
+    success &= (icm.setBiasGyroZ(store.biasGyroZ) == ICM_20948_Stat_Ok);
+    success &= (icm.setBiasAccelX(store.biasAccelX) == ICM_20948_Stat_Ok);
+    success &= (icm.setBiasAccelY(store.biasAccelY) == ICM_20948_Stat_Ok);
+    success &= (icm.setBiasAccelZ(store.biasAccelZ) == ICM_20948_Stat_Ok);
+    success &= (icm.setBiasCPassX(store.biasCPassX) == ICM_20948_Stat_Ok);
+    success &= (icm.setBiasCPassY(store.biasCPassY) == ICM_20948_Stat_Ok);
+    success &= (icm.setBiasCPassZ(store.biasCPassZ) == ICM_20948_Stat_Ok);
+  }
+  return success;
+}
+
+bool saveBiasStore() {
+  biasStore store;
+
+  bool success = (icm.getBiasGyroX(&store.biasGyroX) == ICM_20948_Stat_Ok);
+  success &= (icm.getBiasGyroY(&store.biasGyroY) == ICM_20948_Stat_Ok);
+  success &= (icm.getBiasGyroZ(&store.biasGyroZ) == ICM_20948_Stat_Ok);
+  success &= (icm.getBiasAccelX(&store.biasAccelX) == ICM_20948_Stat_Ok);
+  success &= (icm.getBiasAccelY(&store.biasAccelY) == ICM_20948_Stat_Ok);
+  success &= (icm.getBiasAccelZ(&store.biasAccelZ) == ICM_20948_Stat_Ok);
+  success &= (icm.getBiasCPassX(&store.biasCPassX) == ICM_20948_Stat_Ok);
+  success &= (icm.getBiasCPassY(&store.biasCPassY) == ICM_20948_Stat_Ok);
+  success &= (icm.getBiasCPassZ(&store.biasCPassZ) == ICM_20948_Stat_Ok);
+
+  updateBiasStoreSum(&store);
+
+  if (success) {
+    EEPROM.put(EEPROM_BIAS_STORE, store);
+    EEPROM.get(EEPROM_BIAS_STORE, store);
+    success &= isBiasStoreValid(&store);
+  }
+  return success;
+}

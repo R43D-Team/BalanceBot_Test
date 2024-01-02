@@ -68,6 +68,9 @@ unsigned long heartDelay = 1000;
 unsigned long controlLoopInterval = 10;
 bool controlLoopIntervalOverride = false;
 
+bool imuCalibrated = false;
+uint32_t imuCalSaveTime = 0;
+
 void setup() {
   //  Three flashes to start program:
   pinMode(heartLed, OUTPUT);
@@ -83,6 +86,7 @@ void setup() {
   WIRE_PORT.begin();
   WIRE_PORT.setClock(1000000);
   setupIMU();
+  imuCalibrated = loadBiasStore();
   startWiFi();
 
   leftStepper.init();
@@ -114,6 +118,10 @@ void loop() {
   if (controlLoopIntervalOverride || (cm - pm >= controlLoopInterval)) {
     pm = cm;
     controlLoop();
+  }
+  if(!imuCalibrated && (millis() - imuCalSaveTime > 120000)){
+    imuCalibrated = saveBiasStore();
+    imuCalSaveTime = millis();
   }
 }
 
