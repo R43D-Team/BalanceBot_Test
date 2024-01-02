@@ -49,11 +49,13 @@ double Setpoint, Input, Output;
 double Kp = 50.0;
 double Ki = 0;
 double Kd = 3.0;
+double pidOutputLimit = 100;
 
 float maxSpeed = 10000.0;
 float speed;
 
 FormUpdatableValue fuMs(maxSpeed, "maxSpeed");
+FormUpdatableValue fuOl(pidOutputLimit, "outputLim");
 FormUpdatableValue fuSp(Setpoint, "Setpoint");
 FormUpdatableValue fuKp(Kp, "Kp");
 FormUpdatableValue fuKi(Ki, "Ki");
@@ -97,7 +99,7 @@ void setup() {
   rightStepper.setSpeed(0);
 
   Setpoint = 0.0;
-  anglePID.SetOutputLimits(-34000, 34000);
+  anglePID.SetOutputLimits(-pidOutputLimit, pidOutputLimit);
   anglePID.SetSampleTime(20);
   Input = readPitch();
   anglePID.SetMode(AUTOMATIC);
@@ -173,13 +175,14 @@ void controlLoop() {
       }
       if (standing) {
         anglePID.SetTunings(Kp, Ki, Kd);
-        static double oldSetpoint = 0;
+        // static double oldSetpoint = 0;
         // Reinitialize if setpoint changes
-        if (Setpoint != oldSetpoint) {
-          oldSetpoint = Setpoint;
-          anglePID.SetMode(MANUAL);
-          anglePID.SetMode(AUTOMATIC);
-        }
+        // if (Setpoint != oldSetpoint) {
+        //   oldSetpoint = Setpoint;
+        //   anglePID.SetMode(MANUAL);
+        //   anglePID.SetMode(AUTOMATIC);
+        // }
+        anglePID.SetOutputLimits(-pidOutputLimit, pidOutputLimit);
         anglePID.Compute();
         accelerate(Output);
       } else {
