@@ -23,7 +23,7 @@ BalanceBot_Test.ino  --  Test code for robot I'm building with @PickyBiker (foru
 
 #include "ICM_20948.h"
 
-#include <PID_v1.h>
+#include <PID_vZ.h>
 
 #include "WiFiS3.h"
 
@@ -33,7 +33,7 @@ BalanceBot_Test.ino  --  Test code for robot I'm building with @PickyBiker (foru
 #include "IMU_Functions.h"
 #include "R43D_WebPage.h"
 
-
+const uint8_t enablePin = 8;
 const uint8_t rightStepPin = 2;
 const uint8_t rightDirPin = 5;
 const uint8_t leftStepPin = 4;
@@ -49,12 +49,14 @@ double Setpoint, Input, Output;
 double Kp = 50.0;
 double Ki = 0;
 double Kd = 3.0;
-double pidOutputLimit = 100;
+double pidOutputLimit = 5000;
 
 float maxSpeed = 10000.0;
+float minSpeed = 10.0;
 float speed;
 
 FormUpdatableValue fuMs(maxSpeed, "maxSpeed");
+FormUpdatableValue fuNs(minSpeed, "minSpeed");
 FormUpdatableValue fuOl(pidOutputLimit, "outputLim");
 FormUpdatableValue fuSp(Setpoint, "Setpoint");
 FormUpdatableValue fuKp(Kp, "Kp");
@@ -77,6 +79,8 @@ bool standing;
 
 void setup() {
   //  Three flashes to start program:
+  pinMode(enablePin, OUTPUT);
+  digitalWrite(enablePin, HIGH);
   pinMode(heartLed, OUTPUT);
   for (int i = 0; i < 3; i++) {
     delay(100);
@@ -117,6 +121,9 @@ void setup() {
 void loop() {
   handleClient();
   heartbeat();
+  if(readBattery() < 10.0){
+    enable = false;
+  }
   static uint32_t pm = millis();
   uint32_t cm = millis();
   if (controlLoopIntervalOverride || (cm - pm >= controlLoopInterval)) {
@@ -148,6 +155,9 @@ void accelerate(double acc) {
   if (speed < -maxSpeed) {
     speed = -maxSpeed;
   }
+  if(abs(speed) < minSpeed){
+    speed = 0;
+  }
   leftStepper.setSpeed(speed);
   rightStepper.setSpeed(speed);
 }
@@ -160,7 +170,9 @@ void controlLoop() {
       enabled = enable;
       if (enabled) {
         anglePID.SetMode(AUTOMATIC);
+        digitalWrite(enablePin, LOW);
       } else {
+        digitalWrite(enablePin, HIGH);
         anglePID.SetMode(MANUAL);
         Output = 0;
         leftStepper.stop();
