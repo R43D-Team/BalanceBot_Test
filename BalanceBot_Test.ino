@@ -121,15 +121,10 @@ void setup() {
 void loop() {
   handleClient();
   heartbeat();
-  if(readBattery() < 10.0){
+  if (readBattery() < 10.0) {
     enable = false;
   }
-  static uint32_t pm = millis();
-  uint32_t cm = millis();
-  if (controlLoopIntervalOverride || (cm - pm >= controlLoopInterval)) {
-    pm = cm;
-    controlLoop();
-  }
+  controlLoop();
   if (!imuCalibrated && (millis() - imuCalSaveTime > 120000)) {
     imuCalibrated = saveBiasStore();
     imuCalSaveTime = millis();
@@ -155,7 +150,7 @@ void accelerate(double acc) {
   if (speed < -maxSpeed) {
     speed = -maxSpeed;
   }
-  if(abs(speed) < minSpeed){
+  if (abs(speed) < minSpeed) {
     speed = 0;
   }
   leftStepper.setSpeed(speed);
@@ -164,42 +159,48 @@ void accelerate(double acc) {
 
 
 void controlLoop() {
-  if (newData()) {
-    Input = readPitch();
-    if (enable != enabled) {
-      enabled = enable;
+
+  static uint32_t pm = millis();
+  uint32_t cm = millis();
+  if (controlLoopIntervalOverride || (cm - pm >= controlLoopInterval)) {
+    pm = cm;
+    if (newData()) {
+      Input = readPitch();
+      if (enable != enabled) {
+        enabled = enable;
+        if (enabled) {
+          anglePID.SetMode(AUTOMATIC);
+          digitalWrite(enablePin, LOW);
+        } else {
+          digitalWrite(enablePin, HIGH);
+          anglePID.SetMode(MANUAL);
+          Output = 0;
+          leftStepper.stop();
+          rightStepper.stop();
+        }
+      }
       if (enabled) {
-        anglePID.SetMode(AUTOMATIC);
-        digitalWrite(enablePin, LOW);
-      } else {
-        digitalWrite(enablePin, HIGH);
-        anglePID.SetMode(MANUAL);
-        Output = 0;
-        leftStepper.stop();
-        rightStepper.stop();
-      }
-    }
-    if (enabled) {
-      if ((Input > 45.0) || (Input < -45.0)) {
-        standing = false;
-        leftStepper.stop();
-        rightStepper.stop();
-      }
-      if (standing) {
-        anglePID.SetTunings(Kp, Ki, Kd);
-        // static double oldSetpoint = 0;
-        // Reinitialize if setpoint changes
-        // if (Setpoint != oldSetpoint) {
-        //   oldSetpoint = Setpoint;
-        //   anglePID.SetMode(MANUAL);
-        //   anglePID.SetMode(AUTOMATIC);
-        // }
-        anglePID.SetOutputLimits(-pidOutputLimit, pidOutputLimit);
-        anglePID.Compute();
-        accelerate(Output);
-      } else {
-        if ((Input > -5.0) && (Input < 5.0)) {
-          standing = true;
+        if ((Input > 45.0) || (Input < -45.0)) {
+          standing = false;
+          leftStepper.stop();
+          rightStepper.stop();
+        }
+        if (standing) {
+          anglePID.SetTunings(Kp, Ki, Kd);
+          // static double oldSetpoint = 0;
+          // Reinitialize if setpoint changes
+          // if (Setpoint != oldSetpoint) {
+          //   oldSetpoint = Setpoint;
+          //   anglePID.SetMode(MANUAL);
+          //   anglePID.SetMode(AUTOMATIC);
+          // }
+          anglePID.SetOutputLimits(-pidOutputLimit, pidOutputLimit);
+          anglePID.Compute();
+          accelerate(Output);
+        } else {
+          if ((Input > -5.0) && (Input < 5.0)) {
+            standing = true;
+          }
         }
       }
     }

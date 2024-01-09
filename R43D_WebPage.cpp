@@ -11,6 +11,16 @@ WiFiClient client;
 
 extern double Input;
 extern bool imuCalibrated;
+extern void controlLoop();
+
+extern FormUpdatableValue<float> fuMs;
+extern FormUpdatableValue<float> fuNs;
+extern FormUpdatableValue<double> fuOl;
+extern FormUpdatableValue<double> fuSp;
+extern FormUpdatableValue<double> fuKp;
+extern FormUpdatableValue<double> fuKi;
+extern FormUpdatableValue<double> fuKd;
+extern FormUpdatableValue<int> fuEn;
 
 void handleClient() {
 
@@ -33,23 +43,47 @@ void handleClient() {
             client.println("HTTP/1.1 200 OK");
             client.println("Content-type:text/html");
             client.println();
+            controlLoop();
 
             // the content of the HTTP response follows the header:
             client.print("<p>Use the forms below to set values</p>");
+            controlLoop();
             client.print("<br>");
             client.print("<a href='/'>Reload</a>");
+            controlLoop();
             client.print("<p>V-Batt: ");
             client.print(readBattery());
+            controlLoop();
             client.print("</p>");
             client.print("<p>IMU Calibrated: ");
+            controlLoop();
             client.print(imuCalibrated ? "True" : "False");
+            controlLoop();
             client.print("</p>");
             client.print("<p>Current Pitch: ");
+            controlLoop();
             client.print(Input);
             client.print("</p>");
+            controlLoop();
 
             // Show a list of forms
-            FormUpdatable::listForms(&client);
+            // FormUpdatable::listForms(&client);
+            fuMs.printForm(&client);
+            controlLoop();
+            fuNs.printForm(&client);
+            controlLoop();
+            fuOl.printForm(&client);
+            controlLoop();
+            fuSp.printForm(&client);
+            controlLoop();
+            fuKp.printForm(&client);
+            controlLoop();
+            fuKd.printForm(&client);
+            controlLoop();
+            fuKi.printForm(&client);
+            controlLoop();
+            fuEn.printForm(&client);
+            controlLoop();
 
             // The HTTP response ends with another blank line:
             client.println();
