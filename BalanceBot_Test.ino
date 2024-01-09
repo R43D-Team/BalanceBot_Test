@@ -55,15 +55,6 @@ float maxSpeed = 10000.0;
 float minSpeed = 10.0;
 float speed;
 
-FormUpdatableValue fuMs(maxSpeed, "maxSpeed");
-FormUpdatableValue fuNs(minSpeed, "minSpeed");
-FormUpdatableValue fuOl(pidOutputLimit, "outputLim");
-FormUpdatableValue fuSp(Setpoint, "Setpoint");
-FormUpdatableValue fuKp(Kp, "Kp");
-FormUpdatableValue fuKi(Ki, "Ki");
-FormUpdatableValue fuKd(Kd, "Kd");
-FormUpdatableValue fuEn(enable, "enable");
-
 PID anglePID(&Input, &Output, &Setpoint, Kp, Ki, Kd, DIRECT);
 
 uint8_t heartLed = LED_BUILTIN;
@@ -106,7 +97,7 @@ void setup() {
   anglePID.SetOutputLimits(-pidOutputLimit, pidOutputLimit);
   anglePID.SetSampleTime(20);
   Input = readPitch();
-  anglePID.SetMode(AUTOMATIC);
+  anglePID.SetMode(MANUAL);
 
   analogReference(AR_INTERNAL);
   // Three more flashes at end of setup.
@@ -209,4 +200,66 @@ void controlLoop() {
 
 float readBattery() {
   return analogRead(A3) * (1.45 / 1023.0) * 12.915;
+}
+
+void serveReturns(WiFiClient* client) {
+  const uint32_t batteryInterval = 5000;
+  const uint32_t tiltInterval = 200;
+
+  uint32_t currentTime = millis();
+  static uint32_t lastBatteryTime = millis();
+  static uint32_t lastTiltTime = millis();
+
+  if (currentTime - lastBatteryTime >= batteryInterval) {
+    lastBatteryTime = currentTime;
+    client->print("<B,");
+    client->print(readBattery());
+    client->println(">");
+  }
+  if (currentTime - lastTiltTime >= tiltInterval) {
+    lastTiltTime = currentTime;
+    client->print("<T,");
+    client->print(Input);
+    client->println(">");
+  }
+}
+
+void parseCommand(char* command) {
+  Serial.print("Parse Command :");
+  Serial.println(command);
+  if (command[0] == '<') {
+    switch (command[1]) {
+      case 'S':
+        Setpoint = atof(command + 3);
+        break;
+      case 'P':
+        Kp = atof(command + 3);
+        break;
+      case 'I':
+        Ki = atof(command + 3);
+        break;
+      case 'D':
+        Kd = atof(command + 3);
+        break;
+      case 'M':
+        maxSpeed = atof(command + 3);
+        break;
+      case 'm':
+        minSpeed = atof(command + 3);
+        break;
+      case 'L':
+        pidOutputLimit = atof(command + 3);
+        break;
+      case 'E':
+        if (command[3] == '0'){
+          enable = false;
+        } else {
+          enable = true;
+        }
+        break;
+      default:
+        Serial.print("Unknown Message :");
+        Serial.println(command);
+    }
+  }
 }

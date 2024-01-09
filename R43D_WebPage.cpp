@@ -9,104 +9,37 @@ WiFiServer server(2080);
 IPAddress ipAddress(192, 168, 1, 81);
 WiFiClient client;
 
-extern double Input;
-extern bool imuCalibrated;
-extern void controlLoop();
-
-extern FormUpdatableValue<float> fuMs;
-extern FormUpdatableValue<float> fuNs;
-extern FormUpdatableValue<double> fuOl;
-extern FormUpdatableValue<double> fuSp;
-extern FormUpdatableValue<double> fuKp;
-extern FormUpdatableValue<double> fuKi;
-extern FormUpdatableValue<double> fuKd;
-extern FormUpdatableValue<int> fuEn;
+extern void parseCommand(char* command);
+extern void serveReturns(WiFiClient* client);
 
 void handleClient() {
 
   if (client) {
-    static char currentLine[64] = { 0 };
+    static char command[64] = { 0 };
     static uint8_t idx = 0;
-    static bool finished = false;
-    if (client.connected() && !finished) {
+    static bool receiving = false;
+    if (client.connected()) {
       // delayMicroseconds(10);
       if (client.available()) {
         char c = client.read();
-        // Serial.write(c);
-        if (c == '\n') {
-
-          // if the current line is blank, you got two newline characters in a row.
-          // that's the end of the client HTTP request, so send a response:
-          if (idx == 0) {
-            // HTTP headers always start with a response code (e.g. HTTP/1.1 200 OK)
-            // and a content-type so the client knows what's coming, then a blank line:
-            client.println("HTTP/1.1 200 OK");
-            client.println("Content-type:text/html");
-            client.println();
-            controlLoop();
-
-            // the content of the HTTP response follows the header:
-            client.print("<p>Use the forms below to set values</p>");
-            controlLoop();
-            client.print("<br>");
-            client.print("<a href='/'>Reload</a>");
-            controlLoop();
-            client.print("<p>V-Batt: ");
-            client.print(readBattery());
-            controlLoop();
-            client.print("</p>");
-            client.print("<p>IMU Calibrated: ");
-            controlLoop();
-            client.print(imuCalibrated ? "True" : "False");
-            controlLoop();
-            client.print("</p>");
-            client.print("<p>Current Pitch: ");
-            controlLoop();
-            client.print(Input);
-            client.print("</p>");
-            controlLoop();
-
-            // Show a list of forms
-            // FormUpdatable::listForms(&client);
-            fuMs.printForm(&client);
-            controlLoop();
-            fuNs.printForm(&client);
-            controlLoop();
-            fuOl.printForm(&client);
-            controlLoop();
-            fuSp.printForm(&client);
-            controlLoop();
-            fuKp.printForm(&client);
-            controlLoop();
-            fuKd.printForm(&client);
-            controlLoop();
-            fuKi.printForm(&client);
-            controlLoop();
-            fuEn.printForm(&client);
-            controlLoop();
-
-            // The HTTP response ends with another blank line:
-            client.println();
-            // break out of the while loop:
-            finished = true;
-          } else {  // if you got a newline, then clear currentLine:
-            // char buf[101];
-            // currentLine.toCharArray(buf, 100);
-            FormUpdatable::parse(currentLine);
-            currentLine[0] = 0;
-            idx = 0;
-          }
-        } else if (c != '\r') {
-          if (idx < 63) {
-            currentLine[idx] = c;
-            currentLine[++idx] = 0;
+        if(c == '<'){
+          receiving = true;
+          command[0] = 0;
+          idx = 0;
+        }
+        if(receiving){
+          command[idx] = c;
+          command[++idx] = 0;
+          if(c == '>') {
+            receiving = false;
+            parseCommand(command);
           }
         }
       }
+      serveReturns(&client);
     } else {
       // close the connection:
       client.stop();
-      finished = false;
     }
   } else {
     static uint32_t lastAttempt = millis();
@@ -143,7 +76,7 @@ void startWiFi() {
     // wait 10 seconds for connection:
     delay(10000);
   }
-
+  Serial.println("Connected");
   server.begin();
 }
 
