@@ -55,6 +55,8 @@ float maxSpeed = 10000.0;
 float minSpeed = 10.0;
 float speed;
 
+int pidSampleTimeMs = 20;
+
 PID anglePID(&Input, &Output, &Setpoint, Kp, Ki, Kd, DIRECT);
 
 uint8_t heartLed = LED_BUILTIN;
@@ -95,7 +97,7 @@ void setup() {
 
   Setpoint = 0.0;
   anglePID.SetOutputLimits(-pidOutputLimit, pidOutputLimit);
-  anglePID.SetSampleTime(20);
+  anglePID.SetSampleTime(pidSampleTimeMs);
   Input = readPitch();
   anglePID.SetMode(MANUAL);
 
@@ -153,7 +155,7 @@ void controlLoop() {
 
   static uint32_t pm = millis();
   uint32_t cm = millis();
-  if (controlLoopIntervalOverride || (cm - pm >= controlLoopInterval)) {
+  while (controlLoopIntervalOverride || (cm - pm >= controlLoopInterval)) {
     pm = cm;
     if (newData()) {
       Input = readPitch();
@@ -202,6 +204,32 @@ float readBattery() {
   return analogRead(A3) * (1.45 / 1023.0) * 12.915;
 }
 
+void sendReturn(WiFiClient* client, char command, double value) {
+  char buf[16];
+  char num[10];
+  dtostrf(value, 2, 2, num);
+  snprintf(buf, 16, "<%c,%s>", command, num);
+  client->println(buf);
+}
+
+void sendReturn(WiFiClient* client, char command, boolean value) {
+  char buf[16];
+  snprintf(buf, 16, "<%c,%s>", command, value? "True" : "False");
+  client->println(buf);
+}
+
+void sendInitials(WiFiClient* client) {
+  sendReturn(client, 'P', Kp);
+  sendReturn(client, 'D', Kd);
+  sendReturn(client, 'I', Ki);
+  sendReturn(client, 'M', maxSpeed);
+  sendReturn(client, 'm', minSpeed);
+  sendReturn(client, 'L', pidOutputLimit);
+  sendReturn(client, 'S', Setpoint);
+  sendReturn(client, 'c', imuCalibrated);
+  
+}
+
 void serveReturns(WiFiClient* client) {
   const uint32_t batteryInterval = 5000;
   const uint32_t tiltInterval = 200;
@@ -210,23 +238,35 @@ void serveReturns(WiFiClient* client) {
   static uint32_t lastBatteryTime = millis();
   static uint32_t lastTiltTime = millis();
 
+  static boolean firstTime = true;
+  if (firstTime) {
+    firstTime = false;
+    sendInitials(client);
+  }
+
   if (currentTime - lastBatteryTime >= batteryInterval) {
     lastBatteryTime = currentTime;
-    client->print("<B,");
-    client->print(readBattery());
-    client->println(">");
-  }
-  if (currentTime - lastTiltTime >= tiltInterval) {
+    sendReturn(client, 'B', readBattery());
+    // dtostrf(readBattery(), 2, 2, num);
+    // snprintf(buf, 16, "<B,%s>", num);
+    // client->println(buf);
+    // Serial.print("tr: ");
+    // Serial.println(millis() - currentTime);
+    // client->print("<B,");
+    // client->print(readBattery());
+    // client->println(">");
+  } else if (currentTime - lastTiltTime >= tiltInterval) {
     lastTiltTime = currentTime;
-    client->print("<T,");
-    client->print(Input);
-    client->println(">");
+    sendReturn(client, 'T', Input);
+    //   client->print("<T,");
+    //   client->print(Input);
+    //   client->println(">");
   }
 }
 
 void parseCommand(char* command) {
-  Serial.print("Parse Command :");
-  Serial.println(command);
+  // Serial.print("Parse Command :");
+  // Serial.println(command);
   if (command[0] == '<') {
     switch (command[1]) {
       case 'S':
@@ -251,7 +291,7 @@ void parseCommand(char* command) {
         pidOutputLimit = atof(command + 3);
         break;
       case 'E':
-        if (command[3] == '0'){
+        if (command[3] == '0') {
           enable = false;
         } else {
           enable = true;
