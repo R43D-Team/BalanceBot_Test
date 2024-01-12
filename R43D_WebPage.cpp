@@ -1,18 +1,31 @@
 #include "R43D_WebPage.h"
 
-///////please enter your sensitive data in the Secret tab/arduino_secrets.h
-char ssid[] = SECRET_SSID;  // your network SSID (name)
-char pass[] = SECRET_PASS;  // your network password (use for WPA, or use as key for WEP)
+char ssid[] = "R43D_Remote_AP";
+char pass[] = "";
 
 int status = WL_IDLE_STATUS;
 WiFiServer server(2080);
-IPAddress ipAddress(192, 168, 1, 81);
+IPAddress ipAddress(192, 168, 4, 34);
+
 WiFiClient client;
 
 extern void parseCommand(char* command);
 extern void serveReturns(WiFiClient* client);
 
 void handleClient() {
+
+  // if (status != WiFi.status()) {
+  //   // it has changed update the variable
+  //   status = WiFi.status();
+
+  //   if (status == WL_AP_CONNECTED) {
+  //     // a device has connected to the AP
+  //     Serial.println("Device connected to AP");
+  //   } else {
+  //     // a device has disconnected from the AP, and we are back in listening mode
+  //     Serial.println("Device disconnected from AP");
+  //   }
+  // }
 
   if (client) {
     static char command[64] = { 0 };
@@ -22,15 +35,15 @@ void handleClient() {
       // delayMicroseconds(10);
       if (client.available()) {
         char c = client.read();
-        if(c == '<'){
+        if (c == '<') {
           receiving = true;
           command[0] = 0;
           idx = 0;
         }
-        if(receiving){
+        if (receiving) {
           command[idx] = c;
           command[++idx] = 0;
-          if(c == '>') {
+          if (c == '>') {
             receiving = false;
             parseCommand(command);
           }
@@ -66,17 +79,20 @@ void startWiFi() {
 
   WiFi.config(ipAddress);
 
-  // attempt to connect to WiFi network:
-  while (status != WL_CONNECTED) {
-    Serial.print("Attempting to connect to Network named: ");
-    Serial.println(ssid);  // print the network name (SSID);
 
-    // Connect to WPA/WPA2 network. Change this line if using open or WEP network:
-    status = WiFi.begin(ssid, pass);
-    // wait 10 seconds for connection:
-    delay(10000);
+  Serial.print("Creating access point named: ");
+  Serial.println(ssid);  // print the network name (SSID);
+
+  // Connect to WPA/WPA2 network. Change this line if using open or WEP network:
+  status = WiFi.beginAP(ssid, pass);
+  if (status != WL_AP_LISTENING) {
+    Serial.println("Creating access point failed");
+    // don't continue
+    while (true)
+      ;
   }
-  Serial.println("Connected");
+  delay(2000);
+  Serial.println("AP Open");
   server.begin();
 }
 

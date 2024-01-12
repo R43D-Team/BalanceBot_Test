@@ -4,7 +4,6 @@
 
 #include "Arduino.h"
 #include "WiFiS3.h"
-#include "arduino_secrets.h"
 
 void handleClient();
 

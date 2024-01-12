@@ -27,9 +27,6 @@ BalanceBot_Test.ino  --  Test code for robot I'm building with @PickyBiker (foru
 
 #include "WiFiS3.h"
 
-#include "arduino_secrets.h"
-#include "FormUpdatable.h"
-
 #include "IMU_Functions.h"
 #include "R43D_WebPage.h"
 
