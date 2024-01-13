@@ -43,9 +43,9 @@ int enable = 0;
 int enabled = 0;
 
 double Setpoint, Input, Output;
-double Kp = 50.0;
-double Ki = 0;
-double Kd = 3.0;
+double Kp = 72.0;
+double Ki = 0.8;
+double Kd = 10.0;
 double pidOutputLimit = 5000;
 
 float maxSpeed = 10000.0;
