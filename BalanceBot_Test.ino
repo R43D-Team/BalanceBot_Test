@@ -177,13 +177,6 @@ void controlLoop() {
         }
         if (standing) {
           anglePID.SetTunings(Kp, Ki, Kd);
-          // static double oldSetpoint = 0;
-          // Reinitialize if setpoint changes
-          // if (Setpoint != oldSetpoint) {
-          //   oldSetpoint = Setpoint;
-          //   anglePID.SetMode(MANUAL);
-          //   anglePID.SetMode(AUTOMATIC);
-          // }
           anglePID.SetOutputLimits(-pidOutputLimit, pidOutputLimit);
           anglePID.Compute();
           accelerate(Output);
@@ -235,29 +228,12 @@ void serveReturns(WiFiClient* client) {
   static uint32_t lastBatteryTime = millis();
   static uint32_t lastTiltTime = millis();
 
-  static boolean firstTime = true;
-  if (firstTime) {
-    firstTime = false;
-    sendInitials(client);
-  }
-
   if (currentTime - lastBatteryTime >= batteryInterval) {
     lastBatteryTime = currentTime;
     sendReturn(client, 'B', readBattery());
-    // dtostrf(readBattery(), 2, 2, num);
-    // snprintf(buf, 16, "<B,%s>", num);
-    // client->println(buf);
-    // Serial.print("tr: ");
-    // Serial.println(millis() - currentTime);
-    // client->print("<B,");
-    // client->print(readBattery());
-    // client->println(">");
   } else if (currentTime - lastTiltTime >= tiltInterval) {
     lastTiltTime = currentTime;
     sendReturn(client, 'T', Input);
-    //   client->print("<T,");
-    //   client->print(Input);
-    //   client->println(">");
   }
 }
 
@@ -294,6 +270,10 @@ void parseCommand(char* command) {
           enable = true;
         }
         break;
+      case 'c':
+        if (command[3] == '0') {
+          clearBiasStore();
+        }
       default:
         Serial.print("Unknown Message :");
         Serial.println(command);

@@ -147,6 +147,7 @@ bool isBiasStoreValid(biasStore *store)  // Returns true if the header and check
   return (store->sum == sum);
 }
 
+
 bool loadBiasStore() {
   biasStore store;
   EEPROM.get(EEPROM_BIAS_STORE, store);
@@ -187,3 +188,11 @@ bool saveBiasStore() {
   }
   return success;
 }
+
+
+void clearBiasStore() {
+  biasStore store;
+  store.header = 0;
+  EEPROM.put(EEPROM_BIAS_STORE, store);
+}
+

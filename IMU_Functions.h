@@ -35,5 +35,6 @@ void updateBiasStoreSum(biasStore *store);
 bool isBiasStoreValid(biasStore *store);
 bool saveBiasStore();
 bool loadBiasStore();
+void clearBiasStore();
 
 #endif //IMU_FUNCTIONS_H

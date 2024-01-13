@@ -11,6 +11,7 @@ WiFiClient client;
 
 extern void parseCommand(char* command);
 extern void serveReturns(WiFiClient* client);
+extern void sendInitials(WiFiClient* client);
 
 void handleClient() {
 
@@ -27,7 +28,12 @@ void handleClient() {
   //   }
   // }
 
+  static boolean gotClient = false;
   if (client) {
+    if(!gotClient){
+      gotClient = true;
+      sendInitials(&client);
+    }
     static char command[64] = { 0 };
     static uint8_t idx = 0;
     static bool receiving = false;
@@ -55,6 +61,7 @@ void handleClient() {
       client.stop();
     }
   } else {
+    gotClient = false;
     static uint32_t lastAttempt = millis();
     if (millis() - lastAttempt >= 100) {
       client = server.available();
