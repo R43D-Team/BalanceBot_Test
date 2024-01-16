@@ -42,17 +42,17 @@ GPT_Stepper rightStepper(rightStepPin, rightDirPin, 34000, false);
 int enable = 0;
 int enabled = 0;
 
-struct PID_Settings_t {
-  double setPoint;
-  double input;
-  double output;
-  double Kp;
-  double Ki;
-  double Kd;
+// struct PID_Settings_t {
+//   double setPoint;
+//   double input;
+//   double output;
+//   double Kp;
+//   double Ki;
+//   double Kd;
   
-  double outputLimit;
-  int sampleTime;
-};
+//   double outputLimit;
+//   int sampleTime;
+// };
 
 double Setpoint, Input, Output;
 double Kp = 72.0;
