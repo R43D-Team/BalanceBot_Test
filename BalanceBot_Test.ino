@@ -215,7 +215,7 @@ void sendInitials() {
   sendReturn('m', minSpeed);
   sendReturn('L', pidOutputLimit);
   sendReturn('S', Setpoint);
-  sendReturn('c', imuCalibrated);  
+  sendReturn('c', imuIsCalibrated());  
 }
 
 void serveReturns() {
