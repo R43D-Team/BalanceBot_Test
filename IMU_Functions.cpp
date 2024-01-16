@@ -2,6 +2,7 @@
 
 ICM_20948_I2C icm;
 icm_20948_DMP_data_t data;
+bool imuCalibrated = false;
 
 extern bool controlLoopIntervalOverride;
 
@@ -52,6 +53,7 @@ void setupIMU() {
     while (1)
       ;  // Do nothing more
   }
+  imuCalibrated = loadBiasStore();
 }
 
 
@@ -186,6 +188,9 @@ bool saveBiasStore() {
     EEPROM.get(EEPROM_BIAS_STORE, store);
     success &= isBiasStoreValid(&store);
   }
+  if (success) {
+    imuCalibrated = true;
+  }
   return success;
 }
 
@@ -196,3 +201,7 @@ void clearBiasStore() {
   EEPROM.put(EEPROM_BIAS_STORE, store);
 }
 
+
+bool imuIsCalibrated() {
+  return imuCalibrated;
+}

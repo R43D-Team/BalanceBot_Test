@@ -74,7 +74,7 @@ unsigned long heartDelay = 1000;
 unsigned long controlLoopInterval = 10;
 bool controlLoopIntervalOverride = false;
 
-bool imuCalibrated = false;
+
 uint32_t imuCalSaveTime = 0;
 
 bool standing;
@@ -96,7 +96,6 @@ void setup() {
   WIRE_PORT.begin();
   WIRE_PORT.setClock(1000000);
   setupIMU();
-  imuCalibrated = loadBiasStore();
   startWiFi();
 
   leftStepper.init();
@@ -127,8 +126,8 @@ void loop() {
     enable = false;
   }
   controlLoop();
-  if (!imuCalibrated && (millis() - imuCalSaveTime > 120000)) {
-    imuCalibrated = saveBiasStore();
+  if (!imuIsCalibrated() && (millis() - imuCalSaveTime > 120000)) {
+    saveBiasStore();
     imuCalSaveTime = millis();
   }
 }
@@ -216,8 +215,7 @@ void sendInitials() {
   sendReturn('m', minSpeed);
   sendReturn('L', pidOutputLimit);
   sendReturn('S', Setpoint);
-  sendReturn('c', imuCalibrated);
-  
+  sendReturn('c', imuCalibrated);  
 }
 
 void serveReturns() {
@@ -273,6 +271,7 @@ void parseCommand(char* command) {
       case 'c':
         if (command[3] == '0') {
           clearBiasStore();
+          imuCalSaveTime = millis();  // so it will calibrate two minutes later.
         }
       default:
         Serial.print("Unknown Message :");

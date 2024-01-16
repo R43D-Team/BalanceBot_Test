@@ -36,5 +36,6 @@ bool isBiasStoreValid(biasStore *store);
 bool saveBiasStore();
 bool loadBiasStore();
 void clearBiasStore();
+bool imuIsCalibrated();
 
 #endif //IMU_FUNCTIONS_H
