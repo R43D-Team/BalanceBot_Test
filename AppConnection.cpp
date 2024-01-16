@@ -1,4 +1,4 @@
-#include "R43D_WebPage.h"
+#include "AppConnection.h"
 
 char ssid[] = "R43D_Remote_AP";
 char pass[] = "";
@@ -10,8 +10,22 @@ IPAddress ipAddress(192, 168, 4, 34);
 WiFiClient client;
 
 extern void parseCommand(char* command);
-extern void serveReturns(WiFiClient* client);
-extern void sendInitials(WiFiClient* client);
+extern void serveReturns();
+extern void sendInitials();
+
+void sendReturn(char command, double value) {
+  char buf[16];
+  char num[10];
+  dtostrf(value, 2, 2, num);
+  snprintf(buf, 16, "<%c,%s>", command, num);
+  client.println(buf);
+}
+
+void sendReturn(char command, boolean value) {
+  char buf[16];
+  snprintf(buf, 16, "<%c,%s>", command, value? "True" : "False");
+  client.println(buf);
+}
 
 void handleClient() {
 
@@ -32,7 +46,7 @@ void handleClient() {
   if (client) {
     if(!gotClient){
       gotClient = true;
-      sendInitials(&client);
+      sendInitials();
     }
     static char command[64] = { 0 };
     static uint8_t idx = 0;
@@ -55,7 +69,7 @@ void handleClient() {
           }
         }
       }
-      serveReturns(&client);
+      serveReturns();
     } else {
       // close the connection:
       client.stop();

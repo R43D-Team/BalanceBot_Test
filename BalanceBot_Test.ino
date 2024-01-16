@@ -23,12 +23,12 @@ BalanceBot_Test.ino  --  Test code for robot I'm building with @PickyBiker (foru
 
 #include "ICM_20948.h"
 
-#include <PID_vZ.h>
+#include "PID_vZ.h"
 
 #include "WiFiS3.h"
 
 #include "IMU_Functions.h"
-#include "R43D_WebPage.h"
+#include "AppConnection.h"
 
 const uint8_t enablePin = 8;
 const uint8_t rightStepPin = 2;
@@ -41,6 +41,18 @@ GPT_Stepper rightStepper(rightStepPin, rightDirPin, 34000, false);
 
 int enable = 0;
 int enabled = 0;
+
+struct PID_Settings_t {
+  double setPoint;
+  double input;
+  double output;
+  double Kp;
+  double Ki;
+  double Kd;
+  
+  double outputLimit;
+  int sampleTime;
+};
 
 double Setpoint, Input, Output;
 double Kp = 72.0;
@@ -194,33 +206,21 @@ float readBattery() {
   return analogRead(A3) * (1.45 / 1023.0) * 12.915;
 }
 
-void sendReturn(WiFiClient* client, char command, double value) {
-  char buf[16];
-  char num[10];
-  dtostrf(value, 2, 2, num);
-  snprintf(buf, 16, "<%c,%s>", command, num);
-  client->println(buf);
-}
 
-void sendReturn(WiFiClient* client, char command, boolean value) {
-  char buf[16];
-  snprintf(buf, 16, "<%c,%s>", command, value? "True" : "False");
-  client->println(buf);
-}
 
-void sendInitials(WiFiClient* client) {
-  sendReturn(client, 'P', Kp);
-  sendReturn(client, 'D', Kd);
-  sendReturn(client, 'I', Ki);
-  sendReturn(client, 'M', maxSpeed);
-  sendReturn(client, 'm', minSpeed);
-  sendReturn(client, 'L', pidOutputLimit);
-  sendReturn(client, 'S', Setpoint);
-  sendReturn(client, 'c', imuCalibrated);
+void sendInitials() {
+  sendReturn('P', Kp);
+  sendReturn('D', Kd);
+  sendReturn('I', Ki);
+  sendReturn('M', maxSpeed);
+  sendReturn('m', minSpeed);
+  sendReturn('L', pidOutputLimit);
+  sendReturn('S', Setpoint);
+  sendReturn('c', imuCalibrated);
   
 }
 
-void serveReturns(WiFiClient* client) {
+void serveReturns() {
   const uint32_t batteryInterval = 5000;
   const uint32_t tiltInterval = 200;
 
@@ -230,10 +230,10 @@ void serveReturns(WiFiClient* client) {
 
   if (currentTime - lastBatteryTime >= batteryInterval) {
     lastBatteryTime = currentTime;
-    sendReturn(client, 'B', readBattery());
+    sendReturn('B', readBattery());
   } else if (currentTime - lastTiltTime >= tiltInterval) {
     lastTiltTime = currentTime;
-    sendReturn(client, 'T', Input);
+    sendReturn('T', Input);
   }
 }
 
