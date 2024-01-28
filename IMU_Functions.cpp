@@ -56,20 +56,24 @@ void setupIMU() {
   imuCalibrated = loadBiasStore();
 }
 
-
+// Check for new data and read it if there.  
+// return true if new data was read. 
 bool newData() {
+  unsigned long start = millis();
+  bool retval = false;
   icm.readDMPdataFromFIFO(&data);
-  controlLoopIntervalOverride = false;
   if ((icm.status == ICM_20948_Stat_Ok) || (icm.status == ICM_20948_Stat_FIFOMoreDataAvail))  // Was valid data available?
   {
-    if (icm.status == ICM_20948_Stat_FIFOMoreDataAvail) {
-      controlLoopIntervalOverride = true;
+    while ((icm.status == ICM_20948_Stat_FIFOMoreDataAvail) && (millis() - start < 10)) {
+      // If there is more data, then let's get the most up to date before we return.
+      icm.readDMPdataFromFIFO(&data);
     }
-    return true;
+    retval = true;
   }
-  return false;
+  return retval;
 }
 
+// This does not fetch data.  You must call newData and get a true return before you call readPitch().
 double readPitch() {
 
   double pitch = 0;
