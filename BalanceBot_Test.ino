@@ -30,11 +30,11 @@ BalanceBot_Test.ino  --  Test code for robot I'm building with @PickyBiker (foru
 #include "IMU_Functions.h"
 #include "AppConnection.h"
 
-const uint8_t enablePin = 8;
-const uint8_t rightStepPin = 2;
-const uint8_t rightDirPin = 5;
-const uint8_t leftStepPin = 4;
-const uint8_t leftDirPin = 7;
+const uint8_t enablePin = 10;
+const uint8_t rightStepPin = 8;
+const uint8_t rightDirPin = 9;
+const uint8_t leftStepPin = 12;
+const uint8_t leftDirPin = 11;
 
 GPT_Stepper leftStepper(leftStepPin, leftDirPin, 34000, true);
 GPT_Stepper rightStepper(rightStepPin, rightDirPin, 34000, false);
