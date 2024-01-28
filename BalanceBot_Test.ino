@@ -23,7 +23,7 @@ BalanceBot_Test.ino  --  Test code for robot I'm building with @PickyBiker (foru
 
 #include "ICM_20948.h"
 
-#include "NewPID.h"
+#include "PID_DG.h"
 
 #include "WiFiS3.h"
 
@@ -48,16 +48,11 @@ PID_Settings angleSettings = {
   .Ki = 0.8,
   .Kd = 10.0,
   .outputMax = 5000,
-  .outputMin = -5000
+  .outputMin = -5000,
+  .direction = DIRECT
 };
 
 double pitch;
-
-// double Setpoint, Input, Output;
-// double Kp = 72.0;
-// double Ki = 0.8;
-// double Kd = 10.0;
-// double pidOutputLimit = 5000;
 
 float maxSpeed = 10000.0;
 float minSpeed = 10.0;
@@ -65,8 +60,7 @@ float speed;
 
 int pidSampleTimeMs = 20;
 
-// PID anglePID(&Input, &Output, &Setpoint, Kp, Ki, Kd, DIRECT);
-NewPID angleNewPID(&angleSettings);
+PID_Class anglePID(angleSettings);
 
 uint8_t heartLed = LED_BUILTIN;
 unsigned long heartDelay = 1000;
@@ -103,11 +97,7 @@ void setup() {
   leftStepper.setSpeed(0);
   rightStepper.setSpeed(0);
 
-  // Setpoint = 0.0;
-  // anglePID.SetOutputLimits(-pidOutputLimit, pidOutputLimit);
-  // anglePID.SetSampleTime(pidSampleTimeMs);
   pitch = readPitch();
-  // anglePID.SetMode(MANUAL);
 
   analogReference(AR_INTERNAL);
   // Three more flashes at end of setup.
@@ -164,20 +154,16 @@ void controlLoop() {
   static uint32_t pm = millis();
   uint32_t cm = millis();
   while (controlLoopIntervalOverride || (cm - pm >= controlLoopInterval)) {
-    pm = cm;
+
     if (newData()) {
       pitch = readPitch();
       if (enable != enabled) {
         enabled = enable;
         if (enabled) {
-          // anglePID.SetMode(AUTOMATIC);
-          angleNewPID.bumplessStart(pitch, 0.0, 21);
+          anglePID.bumplessStart(pitch, 0.0, 21);
           digitalWrite(enablePin, LOW);
         } else {
           digitalWrite(enablePin, HIGH);
-          // anglePID.SetMode(MANUAL);
-          angleNewPID.enable(false);
-          // Output = 0;
           leftStepper.stop();
           rightStepper.stop();
         }
@@ -188,10 +174,8 @@ void controlLoop() {
           leftStepper.stop();
           rightStepper.stop();
         }
-        if (standing) {
-          // anglePID.SetTunings(Kp, Ki, Kd);
-          // anglePID.SetOutputLimits(-pidOutputLimit, pidOutputLimit);
-          double out = angleNewPID.compute(pitch);
+        if (standing && ((cm - pm) > 10)) {
+          double out = anglePID.compute(pitch);
           accelerate(out);
         } else {
           if ((pitch > -5.0) && (pitch < 5.0)) {
@@ -200,6 +184,7 @@ void controlLoop() {
         }
       }
     }
+    pm = cm;
   }
 }
 
