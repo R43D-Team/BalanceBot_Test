@@ -23,7 +23,7 @@ BalanceBot_Test.ino  --  Test code for robot I'm building with @PickyBiker (foru
 
 #include "ICM_20948.h"
 
-#include "PID_vZ.h"
+#include "NewPID.h"
 
 #include "WiFiS3.h"
 
@@ -42,23 +42,22 @@ GPT_Stepper rightStepper(rightStepPin, rightDirPin, 34000, false);
 int enable = 0;
 int enabled = 0;
 
-// struct PID_Settings_t {
-//   double setPoint;
-//   double input;
-//   double output;
-//   double Kp;
-//   double Ki;
-//   double Kd;
-  
-//   double outputLimit;
-//   int sampleTime;
-// };
+PID_Settings angleSettings = {
+  .setpoint = 0,
+  .Kp = 72.0,
+  .Ki = 0.8,
+  .Kd = 10.0,
+  .outputMax = 5000,
+  .outputMin = -5000
+};
 
-double Setpoint, Input, Output;
-double Kp = 72.0;
-double Ki = 0.8;
-double Kd = 10.0;
-double pidOutputLimit = 5000;
+double pitch;
+
+// double Setpoint, Input, Output;
+// double Kp = 72.0;
+// double Ki = 0.8;
+// double Kd = 10.0;
+// double pidOutputLimit = 5000;
 
 float maxSpeed = 10000.0;
 float minSpeed = 10.0;
@@ -66,7 +65,8 @@ float speed;
 
 int pidSampleTimeMs = 20;
 
-PID anglePID(&Input, &Output, &Setpoint, Kp, Ki, Kd, DIRECT);
+// PID anglePID(&Input, &Output, &Setpoint, Kp, Ki, Kd, DIRECT);
+NewPID angleNewPID(&angleSettings);
 
 uint8_t heartLed = LED_BUILTIN;
 unsigned long heartDelay = 1000;
@@ -103,11 +103,11 @@ void setup() {
   leftStepper.setSpeed(0);
   rightStepper.setSpeed(0);
 
-  Setpoint = 0.0;
-  anglePID.SetOutputLimits(-pidOutputLimit, pidOutputLimit);
-  anglePID.SetSampleTime(pidSampleTimeMs);
-  Input = readPitch();
-  anglePID.SetMode(MANUAL);
+  // Setpoint = 0.0;
+  // anglePID.SetOutputLimits(-pidOutputLimit, pidOutputLimit);
+  // anglePID.SetSampleTime(pidSampleTimeMs);
+  pitch = readPitch();
+  // anglePID.SetMode(MANUAL);
 
   analogReference(AR_INTERNAL);
   // Three more flashes at end of setup.
@@ -166,33 +166,35 @@ void controlLoop() {
   while (controlLoopIntervalOverride || (cm - pm >= controlLoopInterval)) {
     pm = cm;
     if (newData()) {
-      Input = readPitch();
+      pitch = readPitch();
       if (enable != enabled) {
         enabled = enable;
         if (enabled) {
-          anglePID.SetMode(AUTOMATIC);
+          // anglePID.SetMode(AUTOMATIC);
+          angleNewPID.bumplessStart(pitch, 0.0, 21);
           digitalWrite(enablePin, LOW);
         } else {
           digitalWrite(enablePin, HIGH);
-          anglePID.SetMode(MANUAL);
-          Output = 0;
+          // anglePID.SetMode(MANUAL);
+          angleNewPID.enable(false);
+          // Output = 0;
           leftStepper.stop();
           rightStepper.stop();
         }
       }
       if (enabled) {
-        if ((Input > 45.0) || (Input < -45.0)) {
+        if ((pitch > 45.0) || (pitch < -45.0)) {
           standing = false;
           leftStepper.stop();
           rightStepper.stop();
         }
         if (standing) {
-          anglePID.SetTunings(Kp, Ki, Kd);
-          anglePID.SetOutputLimits(-pidOutputLimit, pidOutputLimit);
-          anglePID.Compute();
-          accelerate(Output);
+          // anglePID.SetTunings(Kp, Ki, Kd);
+          // anglePID.SetOutputLimits(-pidOutputLimit, pidOutputLimit);
+          double out = angleNewPID.compute(pitch);
+          accelerate(out);
         } else {
-          if ((Input > -5.0) && (Input < 5.0)) {
+          if ((pitch > -5.0) && (pitch < 5.0)) {
             standing = true;
           }
         }
@@ -208,14 +210,14 @@ float readBattery() {
 
 
 void sendInitials() {
-  sendReturn('P', Kp);
-  sendReturn('D', Kd);
-  sendReturn('I', Ki);
+  sendReturn('P', angleSettings.Kp);
+  sendReturn('D', angleSettings.Kd);
+  sendReturn('I', angleSettings.Ki);
   sendReturn('M', maxSpeed);
   sendReturn('m', minSpeed);
-  sendReturn('L', pidOutputLimit);
-  sendReturn('S', Setpoint);
-  sendReturn('c', imuIsCalibrated());  
+  sendReturn('L', angleSettings.outputMax);
+  sendReturn('S', angleSettings.setpoint);
+  sendReturn('c', imuIsCalibrated());
 }
 
 void serveReturns() {
@@ -231,7 +233,7 @@ void serveReturns() {
     sendReturn('B', readBattery());
   } else if (currentTime - lastTiltTime >= tiltInterval) {
     lastTiltTime = currentTime;
-    sendReturn('T', Input);
+    sendReturn('T', pitch);
   }
 }
 
@@ -241,16 +243,16 @@ void parseCommand(char* command) {
   if (command[0] == '<') {
     switch (command[1]) {
       case 'S':
-        Setpoint = atof(command + 3);
+        angleSettings.setpoint = atof(command + 3);
         break;
       case 'P':
-        Kp = atof(command + 3);
+        angleSettings.Kp = atof(command + 3);
         break;
       case 'I':
-        Ki = atof(command + 3);
+        angleSettings.Ki = atof(command + 3);
         break;
       case 'D':
-        Kd = atof(command + 3);
+        angleSettings.Kd = atof(command + 3);
         break;
       case 'M':
         maxSpeed = atof(command + 3);
@@ -259,8 +261,12 @@ void parseCommand(char* command) {
         minSpeed = atof(command + 3);
         break;
       case 'L':
-        pidOutputLimit = atof(command + 3);
-        break;
+        {
+          double set = atof(command + 3);
+          angleSettings.outputMax = set;
+          angleSettings.outputMin = set;
+          break;
+        }
       case 'E':
         if (command[3] == '0') {
           enable = false;
