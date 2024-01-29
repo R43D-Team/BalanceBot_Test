@@ -186,11 +186,11 @@ void controlLoop() {
   static uint32_t pm = millis();
   uint32_t cm = millis();
   if (cm - pm >= controlLoopInterval) {
-    // if the IMU has new data. 
+    // if the IMU has new data.
     if (newData()) {
       // reset controlLoopInterval if there's new data
       // This means that the IMU read rate is really setting our PID rate
-      pm = cm;  
+      pm = cm;
       // get the pitch
       pitch = readPitch();
       // handle enable state change
@@ -208,21 +208,21 @@ void controlLoop() {
       // if still enabled
       if (enabled) {
         if ((pitch > 45.0) || (pitch < -45.0)) {
-          //  pitch is too much.  We fell over. 
+          //  pitch is too much.  We fell over.
           standing = false;
           leftStepper.stop();
           rightStepper.stop();
         }
         if (standing) {
-          // Only run the PID if standing.  
+          // Only run the PID if standing.
           // Enforce a time for now in case of ControlLoopIntervalOverride
 
           // Get the output for the current pitch value
           double out = anglePID.compute(pitch);
-          // Call accelerate with the output. 
+          // Call accelerate with the output.
           accelerate(out);
         } else {
-          // standing is false, so check to see if we've been righted. 
+          // standing is false, so check to see if we've been righted.
           if ((pitch > -5.0) && (pitch < 5.0)) {
             standing = true;
           }
@@ -255,7 +255,7 @@ void sendInitials() {
   sendReturn('c', imuIsCalibrated());
 }
 
-// Called from handleClient.  Don't serve too much.  Try to combine into one send.  
+// Called from handleClient.  Don't serve too much.  Try to combine into one send.
 void serveReturns() {
   const uint32_t batteryInterval = 5000;
   const uint32_t tiltInterval = 200;
@@ -270,11 +270,16 @@ void serveReturns() {
   } else if (currentTime - lastTiltTime >= tiltInterval) {
     lastTiltTime = currentTime;
     sendReturn('T', pitch);
+    static double oldSetpoint = angleSettings.setpoint;
+    if (angleSettings.setpoint != oldSetpoint) {
+      sendReturn('S', angleSettings.setpoint);
+      oldSetpoint = angleSettings.setpoint;
+    }
   }
 }
 
 // Called from handleClient when a command is received
-// command will have the full command with both start and end markers intact. 
+// command will have the full command with both start and end markers intact.
 void parseCommand(char* command) {
   // Serial.print("Parse Command :");
   // Serial.println(command);
