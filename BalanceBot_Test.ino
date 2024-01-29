@@ -252,7 +252,7 @@ void sendInitials() {
   sendReturn('m', minSpeed);
   sendReturn('L', angleSettings.outputMax);
   sendReturn('S', angleSettings.setpoint);
-  sendReturn('c', imuIsCalibrated());
+  // sendReturn('c', imuIsCalibrated());
 }
 
 // Called from handleClient.  Don't serve too much.  Try to combine into one send.
