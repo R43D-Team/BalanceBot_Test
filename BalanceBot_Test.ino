@@ -84,7 +84,6 @@ bool standing;
 PID_Class anglePID(angleSettings);
 
 unsigned long controlLoopInterval = 10;
-bool controlLoopIntervalOverride = false;  /* TODO: get rid of this stupidity */
 
 // Global variable to hold current pitch (shared between controlLoop and app code)
 double pitch;
