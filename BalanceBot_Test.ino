@@ -246,6 +246,7 @@ float readBattery() {
 
 // Called when first making connection with app
 void sendInitials() {
+  sendReturn('?', "R43D Ready");
   sendReturn('P', angleSettings.Kp);
   sendReturn('D', angleSettings.Kd);
   sendReturn('I', angleSettings.Ki);
