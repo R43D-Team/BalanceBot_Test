@@ -1,6 +1,6 @@
 #include "AppConnection.h"
 
-#define RETURN_BUFFER_SIZE 64
+#define RETURN_BUFFER_SIZE 128
 
 char ssid[] = "R43D_Remote_AP";
 char pass[] = "";
@@ -28,23 +28,16 @@ void sendReturn(char command, char* value) {
 }
 
 void sendReturn(char command, double value) {
-  char buf[16];
+  // char buf[16];
   char num[10];
   dtostrf(value, 2, 2, num);
-  snprintf(buf, 16, "<%c,%s>", command, num);
-  int len = strlen(buf);
-  if (strlen(returnBuffer) + strlen(buf) <= RETURN_BUFFER_SIZE) {
-    strcat(returnBuffer, buf);
-  }
+  sendReturn(command, num);
 }
 
 void sendReturn(char command, boolean value) {
-  char buf[16];
-  snprintf(buf, 16, "<%c,%s>", command, value ? "True" : "False");
-  int len = strlen(buf);
-  if (strlen(returnBuffer) + strlen(buf) <= RETURN_BUFFER_SIZE) {
-    strcat(returnBuffer, buf);
-  }
+  char buf[7];
+  snprintf(buf, 7, "%s", value ? "True" : "False");
+  sendReturn(command, buf);
 }
 
 void sendReturnBuffer() {
