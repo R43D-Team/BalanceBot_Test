@@ -75,8 +75,8 @@ PID_Settings angleSettings = {
 };
 
 // Used in Control Loop to enable PID from app and from loop in battery check
-int enable = 0;
-int enabled = 0;
+bool enable = 0;
+bool enabled = 0;
 
 bool standing;
 
@@ -204,6 +204,7 @@ void controlLoop() {
           leftStepper.stop();
           rightStepper.stop();
         }
+        sendReturn('E', enabled);
       }
       // if still enabled
       if (enabled) {
@@ -252,7 +253,8 @@ void sendInitials() {
   sendReturn('m', minSpeed);
   sendReturn('L', angleSettings.outputMax);
   sendReturn('S', angleSettings.setpoint);
-  // sendReturn('c', imuIsCalibrated());
+  sendReturn('c', imuIsCalibrated());
+  sendReturn('E', enabled);
 }
 
 // Called from handleClient.  Don't serve too much.  Try to combine into one send.

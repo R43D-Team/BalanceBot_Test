@@ -39,7 +39,12 @@ void sendReturn(char command, double value) {
 }
 
 void sendReturn(char command, boolean value) {
-  sendReturn(command, value ? "True" : "False");
+  char buf[16];
+  snprintf(buf, 16, "<%c,%s>", command, value ? "True" : "False");
+  int len = strlen(buf);
+  if (strlen(returnBuffer) + strlen(buf) <= RETURN_BUFFER_SIZE) {
+    strcat(returnBuffer, buf);
+  }
 }
 
 void sendReturnBuffer() {
