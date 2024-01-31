@@ -18,7 +18,7 @@ BalanceBot_Test.ino  --  Test code for robot I'm building with @PickyBiker (foru
 
      */
 
-
+#include "EEPROM.h"
 #include "GPT_Stepper.h"
 
 #include "ICM_20948.h"
@@ -64,11 +64,12 @@ float speed;
 /*
 *  PID Settings
 */
+#define EEPROM_ANGLE_SETTINGS 128
 PID_Settings angleSettings = {
   .setpoint = 0,
-  .Kp = 72.0,
-  .Ki = 0.8,
-  .Kd = 10.0,
+  .Kp = 35.0,
+  .Ki = 0.2,
+  .Kd = 4.75,
   .outputMax = 5000,
   .outputMin = -5000,
   .direction = DIRECT
@@ -128,6 +129,12 @@ void setup() {
   pitch = readPitch();
   // Use 1.45V internal reference for stable battery voltage readings
   analogReference(AR_INTERNAL);
+  // Load PID Settings
+  if (getPIDSettings(EEPROM_ANGLE_SETTINGS, angleSettings)) {
+    Serial.println("Good PID Settings");
+  } else {
+    Serial.println("No PID Settings Found");
+  }
   // Three more flashes at end of setup.
   for (int i = 0; i < 3; i++) {
     delay(100);
@@ -283,7 +290,7 @@ void serveReturns() {
 
 // Called from handleClient when a command is received
 // command will have the full command with both start and end markers intact.
-void parseCommand(char* command) {
+void parseCommand(char *command) {
   // Serial.print("Parse Command :");
   // Serial.println(command);
   if (command[0] == '<') {
@@ -330,4 +337,48 @@ void parseCommand(char* command) {
         Serial.println(command);
     }
   }
+}
+
+struct PID_Settings_Store {
+  byte header = 0x42;
+  unsigned char settings[sizeof(PID_Settings)];
+  byte sum = 0;
+
+  void updateSum();
+  bool validateSum();
+  unsigned char calculateSum();
+};
+
+unsigned char PID_Settings_Store::calculateSum() {
+  byte rv = header;
+  for (int i = 0; i < sizeof(PID_Settings); i++) {
+    rv += settings[i];
+  }
+  return rv;
+}
+
+void PID_Settings_Store::updateSum() {
+  sum = calculateSum();
+}
+
+bool PID_Settings_Store::validateSum() {
+  return calculateSum() == sum;
+}
+
+void storePIDSettings(unsigned int address, PID_Settings &settings) {
+  PID_Settings_Store store;
+  memcpy(&(store.settings), &settings, sizeof(PID_Settings));
+  store.updateSum();
+  EEPROM.put(address, store);
+}
+
+bool getPIDSettings(unsigned int address, PID_Settings &settings) {
+  bool rv = false;
+  PID_Settings_Store store;
+  EEPROM.get(address, store);
+  if (store.validateSum()) {
+    memcpy(&settings, &(store.settings), sizeof(PID_Settings));
+    rv = true;
+  }
+  return rv;
 }
