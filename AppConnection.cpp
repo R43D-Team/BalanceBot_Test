@@ -27,6 +27,14 @@ void sendReturn(char command, char* value) {
   }
 }
 
+void sendReturn(char command, char param, double value) {
+  char num[12];
+  num[0] = param;
+  num[1] = ',';
+  dtostrf(value, 2, 2, num + 2);
+  sendReturn(command, num);
+}
+
 void sendReturn(char command, double value) {
   // char buf[16];
   char num[10];

@@ -254,18 +254,19 @@ float readBattery() {
 // Called when first making connection with app
 void sendInitials() {
   sendReturn('?', "R43D Ready");
-  sendReturn('P', angleSettings.Kp);
-  sendReturn('D', angleSettings.Kd);
-  sendReturn('I', angleSettings.Ki);
-  sendReturn('M', maxSpeed);
-  sendReturn('m', minSpeed);
-  sendReturn('L', angleSettings.outputMax);
-  sendReturn('S', angleSettings.setpoint);
+  sendReturn('A', 'P', angleSettings.Kp);
+  sendReturn('A', 'D', angleSettings.Kd);
+  sendReturn('A', 'I', angleSettings.Ki);
+  sendReturn('A', 'M', angleSettings.outputMax);
+  sendReturn('A', 'm', angleSettings.outputMin);
+  sendReturn('A', 'S', angleSettings.setpoint);
   sendReturn('c', imuIsCalibrated());
   sendReturn('E', enabled);
+  sendReturn('M', maxSpeed);
+  sendReturn('m', minSpeed);
 }
 
-// Called from handleClient.  Don't serve too much.  Try to combine into one send.
+
 void serveReturns() {
   const uint32_t batteryInterval = 5000;
   const uint32_t tiltInterval = 200;
@@ -282,7 +283,7 @@ void serveReturns() {
     sendReturn('T', pitch);
     static double oldSetpoint = angleSettings.setpoint;
     if (angleSettings.setpoint != oldSetpoint) {
-      sendReturn('S', angleSettings.setpoint);
+      sendReturn('A', 'S', angleSettings.setpoint);
       oldSetpoint = angleSettings.setpoint;
     }
   }
@@ -295,31 +296,45 @@ void parseCommand(char *command) {
   // Serial.println(command);
   if (command[0] == '<') {
     switch (command[1]) {
-      case 'S':
-        angleSettings.setpoint = atof(command + 3);
-        break;
-      case 'P':
-        angleSettings.Kp = atof(command + 3);
-        break;
-      case 'I':
-        angleSettings.Ki = atof(command + 3);
-        break;
-      case 'D':
-        angleSettings.Kd = atof(command + 3);
-        break;
       case 'M':
         maxSpeed = atof(command + 3);
         break;
       case 'm':
         minSpeed = atof(command + 3);
         break;
-      case 'L':
-        {
-          double set = atof(command + 3);
-          angleSettings.outputMax = set;
-          angleSettings.outputMin = set;
-          break;
+      case 'A':
+        switch (command[3]) {
+          case 'S':
+            angleSettings.setpoint = atof(command + 5);
+            // This changes too fast to send back every time. 
+            //  It's handled in serveReturns
+            // sendReturn('A', 'S', angleSettings.setpoint);
+            break;
+          case 'P':
+            angleSettings.Kp = atof(command + 5);
+            sendReturn('A', 'P', angleSettings.Kp);
+            break;
+          case 'I':
+            angleSettings.Ki = atof(command + 5);
+            sendReturn('A', 'I', angleSettings.Ki);
+            break;
+          case 'D':
+            angleSettings.Kd = atof(command + 5);
+            sendReturn('A', 'D', angleSettings.Kd);
+            break;
+          case 'M':
+            angleSettings.outputMax = atof(command + 5);
+            sendReturn('A', 'M', angleSettings.outputMax);
+            break;
+          case 'm':
+            angleSettings.outputMin = atof(command + 5);
+            sendReturn('A', 'm', angleSettings.outputMin);
+            break;
+
+          default:
+            break;
         }
+        break;
       case 'E':
         if (command[3] == '0') {
           enable = false;
@@ -332,6 +347,7 @@ void parseCommand(char *command) {
           clearBiasStore();
           imuCalSaveTime = millis();  // so it will calibrate two minutes later.
         }
+
       default:
         Serial.print("Unknown Message :");
         Serial.println(command);

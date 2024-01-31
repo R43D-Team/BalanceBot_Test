@@ -6,6 +6,7 @@
 #include "WiFiS3.h"
 
 void sendReturn(char command, char* value);
+void sendReturn(char command, char param, double value);
 void sendReturn(char command, double value);
 void sendReturn(char command, boolean value);
 
