@@ -34,7 +34,7 @@ BalanceBot_Test.ino  --  Test code for robot I'm building with @PickyBiker (foru
 *  Pin Definitions
 */
 #define NEWPINS
-
+// Select your pin configuration
 #ifdef NEWPINS
 const uint8_t enablePin = 10;
 const uint8_t rightStepPin = 8;
