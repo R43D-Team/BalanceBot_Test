@@ -306,7 +306,7 @@ void parseCommand(char *command) {
         switch (command[3]) {
           case 'S':
             angleSettings.setpoint = atof(command + 5);
-            // This changes too fast to send back every time. 
+            // This changes too fast to send back every time.
             //  It's handled in serveReturns
             // sendReturn('A', 'S', angleSettings.setpoint);
             break;
@@ -331,10 +331,15 @@ void parseCommand(char *command) {
             sendReturn('A', 'm', angleSettings.outputMin);
             break;
           case 'e':
-            if(command[5] == 'S'){
+            if (command[5] == 'S') {
               storePIDSettings(EEPROM_ANGLE_SETTINGS, angleSettings);
-            } else if(command[5] == 'L'){
+            } else if (command[5] == 'L') {
               getPIDSettings(EEPROM_ANGLE_SETTINGS, angleSettings);
+              sendReturn('A', 'P', angleSettings.Kp);
+              sendReturn('A', 'D', angleSettings.Kd);
+              sendReturn('A', 'I', angleSettings.Ki);
+              sendReturn('A', 'M', angleSettings.outputMax);
+              sendReturn('A', 'm', angleSettings.outputMin);
             }
             break;
 
