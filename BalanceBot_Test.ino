@@ -330,6 +330,13 @@ void parseCommand(char *command) {
             angleSettings.outputMin = atof(command + 5);
             sendReturn('A', 'm', angleSettings.outputMin);
             break;
+          case 'e':
+            if(command[5] == 'S'){
+              storePIDSettings(EEPROM_ANGLE_SETTINGS, angleSettings);
+            } else if(command[5] == 'L'){
+              getPIDSettings(EEPROM_ANGLE_SETTINGS, angleSettings);
+            }
+            break;
 
           default:
             break;
