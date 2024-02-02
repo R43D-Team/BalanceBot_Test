@@ -1,5 +1,7 @@
 #include "AppConnection.h"
 
+#define RETURN_BUFFER_SIZE 128
+
 char ssid[] = "R43D_Remote_AP";
 char pass[] = "";
 
@@ -13,18 +15,44 @@ extern void parseCommand(char* command);
 extern void serveReturns();
 extern void sendInitials();
 
-void sendReturn(char command, double value) {
+char returnBuffer[RETURN_BUFFER_SIZE];
+
+void sendReturn(char command, char* value) {
   char buf[16];
+  snprintf(buf, 16, "<%c,%s>", command, value);
+
+  int len = strlen(buf);
+  if (strlen(returnBuffer) + strlen(buf) <= RETURN_BUFFER_SIZE) {
+    strcat(returnBuffer, buf);
+  }
+}
+
+void sendReturn(char command, char param, double value) {
+  char num[12];
+  num[0] = param;
+  num[1] = ',';
+  dtostrf(value, 2, 2, num + 2);
+  sendReturn(command, num);
+}
+
+void sendReturn(char command, double value) {
+  // char buf[16];
   char num[10];
   dtostrf(value, 2, 2, num);
-  snprintf(buf, 16, "<%c,%s>", command, num);
-  client.println(buf);
+  sendReturn(command, num);
 }
 
 void sendReturn(char command, boolean value) {
-  char buf[16];
-  snprintf(buf, 16, "<%c,%s>", command, value? "True" : "False");
-  client.println(buf);
+  char buf[7];
+  snprintf(buf, 7, "%s", value ? "True" : "False");
+  sendReturn(command, buf);
+}
+
+void sendReturnBuffer() {
+  if (strlen(returnBuffer) > 0) {
+    client.println(returnBuffer);
+    returnBuffer[0] = 0;
+  }
 }
 
 void handleClient() {
@@ -44,7 +72,7 @@ void handleClient() {
 
   static boolean gotClient = false;
   if (client) {
-    if(!gotClient){
+    if (!gotClient) {
       gotClient = true;
       sendInitials();
     }
@@ -70,6 +98,7 @@ void handleClient() {
         }
       }
       serveReturns();
+      sendReturnBuffer();
     } else {
       // close the connection:
       client.stop();

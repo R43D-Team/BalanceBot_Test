@@ -18,7 +18,7 @@ BalanceBot_Test.ino  --  Test code for robot I'm building with @PickyBiker (foru
 
      */
 
-
+#include "EEPROM.h"
 #include "GPT_Stepper.h"
 
 #include "ICM_20948.h"
@@ -64,19 +64,20 @@ float speed;
 /*
 *  PID Settings
 */
+#define EEPROM_ANGLE_SETTINGS 128
 PID_Settings angleSettings = {
   .setpoint = 0,
-  .Kp = 72.0,
-  .Ki = 0.8,
-  .Kd = 10.0,
+  .Kp = 35.0,
+  .Ki = 0.2,
+  .Kd = 4.75,
   .outputMax = 5000,
   .outputMin = -5000,
   .direction = DIRECT
 };
 
 // Used in Control Loop to enable PID from app and from loop in battery check
-int enable = 0;
-int enabled = 0;
+bool enable = 0;
+bool enabled = 0;
 
 bool standing;
 
@@ -128,6 +129,12 @@ void setup() {
   pitch = readPitch();
   // Use 1.45V internal reference for stable battery voltage readings
   analogReference(AR_INTERNAL);
+  // Load PID Settings
+  if (getPIDSettings(EEPROM_ANGLE_SETTINGS, angleSettings)) {
+    Serial.println("Good PID Settings");
+  } else {
+    Serial.println("No PID Settings Found");
+  }
   // Three more flashes at end of setup.
   for (int i = 0; i < 3; i++) {
     delay(100);
@@ -186,11 +193,11 @@ void controlLoop() {
   static uint32_t pm = millis();
   uint32_t cm = millis();
   if (cm - pm >= controlLoopInterval) {
-    // if the IMU has new data. 
+    // if the IMU has new data.
     if (newData()) {
       // reset controlLoopInterval if there's new data
       // This means that the IMU read rate is really setting our PID rate
-      pm = cm;  
+      pm = cm;
       // get the pitch
       pitch = readPitch();
       // handle enable state change
@@ -204,25 +211,26 @@ void controlLoop() {
           leftStepper.stop();
           rightStepper.stop();
         }
+        sendReturn('E', enabled);
       }
       // if still enabled
       if (enabled) {
         if ((pitch > 45.0) || (pitch < -45.0)) {
-          //  pitch is too much.  We fell over. 
+          //  pitch is too much.  We fell over.
           standing = false;
           leftStepper.stop();
           rightStepper.stop();
         }
         if (standing) {
-          // Only run the PID if standing.  
+          // Only run the PID if standing.
           // Enforce a time for now in case of ControlLoopIntervalOverride
 
           // Get the output for the current pitch value
           double out = anglePID.compute(pitch);
-          // Call accelerate with the output. 
+          // Call accelerate with the output.
           accelerate(out);
         } else {
-          // standing is false, so check to see if we've been righted. 
+          // standing is false, so check to see if we've been righted.
           if ((pitch > -5.0) && (pitch < 5.0)) {
             standing = true;
           }
@@ -245,17 +253,20 @@ float readBattery() {
 
 // Called when first making connection with app
 void sendInitials() {
-  sendReturn('P', angleSettings.Kp);
-  sendReturn('D', angleSettings.Kd);
-  sendReturn('I', angleSettings.Ki);
+  sendReturn('?', "R43D Ready");
+  sendReturn('A', 'P', angleSettings.Kp);
+  sendReturn('A', 'D', angleSettings.Kd);
+  sendReturn('A', 'I', angleSettings.Ki);
+  sendReturn('A', 'M', angleSettings.outputMax);
+  sendReturn('A', 'm', angleSettings.outputMin);
+  sendReturn('A', 'S', angleSettings.setpoint);
+  sendReturn('c', imuIsCalibrated());
+  sendReturn('E', enabled);
   sendReturn('M', maxSpeed);
   sendReturn('m', minSpeed);
-  sendReturn('L', angleSettings.outputMax);
-  sendReturn('S', angleSettings.setpoint);
-  sendReturn('c', imuIsCalibrated());
 }
 
-// Called from handleClient.  Don't serve too much.  Try to combine into one send.  
+
 void serveReturns() {
   const uint32_t batteryInterval = 5000;
   const uint32_t tiltInterval = 200;
@@ -270,41 +281,72 @@ void serveReturns() {
   } else if (currentTime - lastTiltTime >= tiltInterval) {
     lastTiltTime = currentTime;
     sendReturn('T', pitch);
+    static double oldSetpoint = angleSettings.setpoint;
+    if (angleSettings.setpoint != oldSetpoint) {
+      sendReturn('A', 'S', angleSettings.setpoint);
+      oldSetpoint = angleSettings.setpoint;
+    }
   }
 }
 
 // Called from handleClient when a command is received
-// command will have the full command with both start and end markers intact. 
-void parseCommand(char* command) {
+// command will have the full command with both start and end markers intact.
+void parseCommand(char *command) {
   // Serial.print("Parse Command :");
   // Serial.println(command);
   if (command[0] == '<') {
     switch (command[1]) {
-      case 'S':
-        angleSettings.setpoint = atof(command + 3);
-        break;
-      case 'P':
-        angleSettings.Kp = atof(command + 3);
-        break;
-      case 'I':
-        angleSettings.Ki = atof(command + 3);
-        break;
-      case 'D':
-        angleSettings.Kd = atof(command + 3);
-        break;
       case 'M':
         maxSpeed = atof(command + 3);
         break;
       case 'm':
         minSpeed = atof(command + 3);
         break;
-      case 'L':
-        {
-          double set = atof(command + 3);
-          angleSettings.outputMax = set;
-          angleSettings.outputMin = set;
-          break;
+      case 'A':
+        switch (command[3]) {
+          case 'S':
+            angleSettings.setpoint = atof(command + 5);
+            // This changes too fast to send back every time.
+            //  It's handled in serveReturns
+            // sendReturn('A', 'S', angleSettings.setpoint);
+            break;
+          case 'P':
+            angleSettings.Kp = atof(command + 5);
+            sendReturn('A', 'P', angleSettings.Kp);
+            break;
+          case 'I':
+            angleSettings.Ki = atof(command + 5);
+            sendReturn('A', 'I', angleSettings.Ki);
+            break;
+          case 'D':
+            angleSettings.Kd = atof(command + 5);
+            sendReturn('A', 'D', angleSettings.Kd);
+            break;
+          case 'M':
+            angleSettings.outputMax = atof(command + 5);
+            sendReturn('A', 'M', angleSettings.outputMax);
+            break;
+          case 'm':
+            angleSettings.outputMin = atof(command + 5);
+            sendReturn('A', 'm', angleSettings.outputMin);
+            break;
+          case 'e':
+            if (command[5] == 'S') {
+              storePIDSettings(EEPROM_ANGLE_SETTINGS, angleSettings);
+            } else if (command[5] == 'L') {
+              getPIDSettings(EEPROM_ANGLE_SETTINGS, angleSettings);
+              sendReturn('A', 'P', angleSettings.Kp);
+              sendReturn('A', 'D', angleSettings.Kd);
+              sendReturn('A', 'I', angleSettings.Ki);
+              sendReturn('A', 'M', angleSettings.outputMax);
+              sendReturn('A', 'm', angleSettings.outputMin);
+            }
+            break;
+
+          default:
+            break;
         }
+        break;
       case 'E':
         if (command[3] == '0') {
           enable = false;
@@ -317,9 +359,54 @@ void parseCommand(char* command) {
           clearBiasStore();
           imuCalSaveTime = millis();  // so it will calibrate two minutes later.
         }
+
       default:
         Serial.print("Unknown Message :");
         Serial.println(command);
     }
   }
+}
+
+struct PID_Settings_Store {
+  byte header = 0x42;
+  unsigned char settings[sizeof(PID_Settings)];
+  byte sum = 0;
+
+  void updateSum();
+  bool validateSum();
+  unsigned char calculateSum();
+};
+
+unsigned char PID_Settings_Store::calculateSum() {
+  byte rv = header;
+  for (int i = 0; i < sizeof(PID_Settings); i++) {
+    rv += settings[i];
+  }
+  return rv;
+}
+
+void PID_Settings_Store::updateSum() {
+  sum = calculateSum();
+}
+
+bool PID_Settings_Store::validateSum() {
+  return calculateSum() == sum;
+}
+
+void storePIDSettings(unsigned int address, PID_Settings &settings) {
+  PID_Settings_Store store;
+  memcpy(&(store.settings), &settings, sizeof(PID_Settings));
+  store.updateSum();
+  EEPROM.put(address, store);
+}
+
+bool getPIDSettings(unsigned int address, PID_Settings &settings) {
+  bool rv = false;
+  PID_Settings_Store store;
+  EEPROM.get(address, store);
+  if (store.validateSum()) {
+    memcpy(&settings, &(store.settings), sizeof(PID_Settings));
+    rv = true;
+  }
+  return rv;
 }
