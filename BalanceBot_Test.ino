@@ -64,7 +64,7 @@ float speed;
 /*
 *  PID Settings
 */
-#define EEPROM_ANGLE_SETTINGS 128
+#define EEPROM_ANGLE_SETTINGS (128)
 PID_Settings angleSettings = {
   .setpoint = 0,
   .Kp = 35.0,
@@ -75,14 +75,28 @@ PID_Settings angleSettings = {
   .direction = DIRECT
 };
 
-// Used in Control Loop to enable PID from app and from loop in battery check
-bool enable = 0;
-bool enabled = 0;
+#define EEPROM_SPEED_SETTINGS (128 + sizeof(PID_Settings_Store))
+PID_Settings speedSettings = {
+  .setpoint = 0,
+  .Kp = 2.0,
+  .Ki = 0.0,
+  .Kd = 0.1,
+  .outputMax = 5000,
+  .outputMin = -5000,
+  .direction = DIRECT
+}
 
-bool standing;
+
+// Used in Control Loop to enable PID from app and from loop in battery check
+bool enable = false;
+bool enabled = false;
+bool enableSecondPID = false;
+bool secondPIDEnabled = false;
+bool standing = false;
 
 // Instance variables for PID controllers
 PID_Class anglePID(angleSettings);
+PID_Class speedPID(speedSettings);
 
 unsigned long controlLoopInterval = 10;
 
@@ -170,6 +184,11 @@ void heartbeat() {
   }
 }
 
+double getCurrentSpeed() {
+  // get an average of the speed of the two motors
+  return (leftStepper.getCurrentSpeed() + rightStepper.getCurrentSpeed()) / 2.0;
+}
+
 // This function is called from controlLoop to apply the PID output
 void accelerate(double acc) {
   // I keep forgetting to fix the backwards output
@@ -213,6 +232,14 @@ void controlLoop() {
         }
         sendReturn('E', enabled);
       }
+      // handle enable state change for second PID
+      if (enableSecondPID != secondPIDEnabled) {
+        secondPIDEnabled = enableSecondPID;
+        if (secondPIDEnabled) {
+          anglePID.bumplessStart(getCurrentSpeed(), 0.0, 21);
+        }
+        sendReturn('e', secondPIDEnabled);
+      }
       // if still enabled
       if (enabled) {
         if ((pitch > 45.0) || (pitch < -45.0)) {
@@ -223,12 +250,14 @@ void controlLoop() {
         }
         if (standing) {
           // Only run the PID if standing.
-          // Enforce a time for now in case of ControlLoopIntervalOverride
-
-          // Get the output for the current pitch value
-          double out = anglePID.compute(pitch);
-          // Call accelerate with the output.
-          accelerate(out);
+          if (secondPIDEnabled) {
+            accelerate(calculatePID());
+          } else {
+            // Get the output for the current pitch value
+            double out = anglePID.compute(pitch);
+            // Call accelerate with the output.
+            accelerate(out);
+          }
         } else {
           // standing is false, so check to see if we've been righted.
           if ((pitch > -5.0) && (pitch < 5.0)) {
@@ -238,6 +267,12 @@ void controlLoop() {
       }
     }
   }
+}
+
+double calculatePID() {
+  double angleDelta = speedPID.compute(getCurrentSpeed());
+  angleSettings.setpoint += angleDelta;
+  double output = anglePID.compute(pitch);
 }
 
 float readBattery() {
@@ -352,6 +387,13 @@ void parseCommand(char *command) {
           enable = false;
         } else {
           enable = true;
+        }
+        break;
+      case 'e':
+        if (command[3] == '0') {
+          enableSecondPID = false;
+        } else {
+          enableSecondPID = true;
         }
         break;
       case 'c':
