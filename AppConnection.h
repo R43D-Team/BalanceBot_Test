@@ -4,11 +4,13 @@
 
 #include "Arduino.h"
 #include "WiFiS3.h"
+#include "PID_DG.h"
 
 void sendReturn(char command, char* value);
 void sendReturn(char command, char param, double value);
 void sendReturn(char command, double value);
 void sendReturn(char command, boolean value);
+void sendReturn(char command, PID_Settings &settings);
 void sendReturnBuffer();
 
 void handleClient();

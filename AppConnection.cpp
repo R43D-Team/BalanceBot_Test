@@ -25,8 +25,8 @@ void sendReturn(char command, char* value) {
   if (strlen(returnBuffer) + strlen(buf) <= RETURN_BUFFER_SIZE) {
     strcat(returnBuffer, buf);
   } else {
-    // allow blocking for a full buffer 
-    // so don't send long strings of stuff 
+    // allow blocking for a full buffer
+    // so don't send long strings of stuff
     // while robot is balancing
     sendReturnBuffer();
     strcat(returnBuffer, buf);
@@ -52,6 +52,16 @@ void sendReturn(char command, boolean value) {
   char buf[7];
   snprintf(buf, 7, "%s", value ? "True" : "False");
   sendReturn(command, buf);
+}
+
+void sendReturn(char command, PID_Settings& settings) {
+
+  sendReturn(command, 'P', settings.Kp);
+  sendReturn(command, 'D', settings.Kd);
+  sendReturn(command, 'I', settings.Ki);
+  sendReturn(command, 'M', settings.outputMax);
+  sendReturn(command, 'm', settings.outputMin);
+  sendReturn(command, 'S', settings.setpoint);
 }
 
 void sendReturnBuffer() {

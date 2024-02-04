@@ -289,12 +289,14 @@ float readBattery() {
 // Called when first making connection with app
 void sendInitials() {
   sendReturn('?', "R43D Ready");
-  sendReturn('A', 'P', angleSettings.Kp);
-  sendReturn('A', 'D', angleSettings.Kd);
-  sendReturn('A', 'I', angleSettings.Ki);
-  sendReturn('A', 'M', angleSettings.outputMax);
-  sendReturn('A', 'm', angleSettings.outputMin);
-  sendReturn('A', 'S', angleSettings.setpoint);
+  // sendReturn('A', 'P', angleSettings.Kp);
+  // sendReturn('A', 'D', angleSettings.Kd);
+  // sendReturn('A', 'I', angleSettings.Ki);
+  // sendReturn('A', 'M', angleSettings.outputMax);
+  // sendReturn('A', 'm', angleSettings.outputMin);
+  // sendReturn('A', 'S', angleSettings.setpoint);
+  sendReturn('A', angleSettings);
+  sendReturn('S', speedSettings);
   sendReturn('c', imuIsCalibrated());
   sendReturn('E', enabled);
   sendReturn('M', maxSpeed);
@@ -338,49 +340,8 @@ void parseCommand(char *command) {
         minSpeed = atof(command + 3);
         break;
       case 'A':
-        switch (command[3]) {
-          case 'S':
-            angleSettings.setpoint = atof(command + 5);
-            // This changes too fast to send back every time.
-            //  It's handled in serveReturns
-            // sendReturn('A', 'S', angleSettings.setpoint);
-            break;
-          case 'P':
-            angleSettings.Kp = atof(command + 5);
-            sendReturn('A', 'P', angleSettings.Kp);
-            break;
-          case 'I':
-            angleSettings.Ki = atof(command + 5);
-            sendReturn('A', 'I', angleSettings.Ki);
-            break;
-          case 'D':
-            angleSettings.Kd = atof(command + 5);
-            sendReturn('A', 'D', angleSettings.Kd);
-            break;
-          case 'M':
-            angleSettings.outputMax = atof(command + 5);
-            sendReturn('A', 'M', angleSettings.outputMax);
-            break;
-          case 'm':
-            angleSettings.outputMin = atof(command + 5);
-            sendReturn('A', 'm', angleSettings.outputMin);
-            break;
-          case 'e':
-            if (command[5] == 'S') {
-              storePIDSettings(EEPROM_ANGLE_SETTINGS, angleSettings);
-            } else if (command[5] == 'L') {
-              getPIDSettings(EEPROM_ANGLE_SETTINGS, angleSettings);
-              sendReturn('A', 'P', angleSettings.Kp);
-              sendReturn('A', 'D', angleSettings.Kd);
-              sendReturn('A', 'I', angleSettings.Ki);
-              sendReturn('A', 'M', angleSettings.outputMax);
-              sendReturn('A', 'm', angleSettings.outputMin);
-            }
-            break;
-
-          default:
-            break;
-        }
+      case 'S':
+        handlePIDReturn(command);
         break;
       case 'E':
         if (command[3] == '0') {
@@ -406,6 +367,58 @@ void parseCommand(char *command) {
         Serial.print("Unknown Message :");
         Serial.println(command);
     }
+  }
+}
+
+void handlePIDReturn(char *buf) {
+  PID_Settings *settings;
+  char letter = buf[1];
+  if (letter == 'A') {
+    settings = &angleSettings;
+  } else if (letter == 'S') {
+    settings = &speedSettings;
+  } else {
+    // bail out, it doesn't match
+    return;
+  }
+  switch (buf[3]) {
+    case 'S':
+      settings->setpoint = atof(buf + 5);
+      // This changes too fast to send back every time.
+      //  It's handled in serveReturns
+      // sendReturn(letter, 'S', settings->setpoint);
+      break;
+    case 'P':
+      settings->Kp = atof(buf + 5);
+      sendReturn(letter, 'P', settings->Kp);
+      break;
+    case 'I':
+      settings->Ki = atof(buf + 5);
+      sendReturn(letter, 'I', settings->Ki);
+      break;
+    case 'D':
+      settings->Kd = atof(buf + 5);
+      sendReturn(letter, 'D', settings->Kd);
+      break;
+    case 'M':
+      settings->outputMax = atof(buf + 5);
+      sendReturn(letter, 'M', settings->outputMax);
+      break;
+    case 'm':
+      settings->outputMin = atof(buf + 5);
+      sendReturn(letter, 'm', settings->outputMin);
+      break;
+    case 'e':
+      if (buf[5] == 'S') {
+        storePIDSettings(EEPROM_ANGLE_SETTINGS, *(settings));
+      } else if (buf[5] == 'L') {
+        getPIDSettings(EEPROM_ANGLE_SETTINGS, *(settings));
+        sendReturn(letter, *(settings));
+      }
+      break;
+
+    default:
+      break;
   }
 }
 
