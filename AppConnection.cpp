@@ -24,6 +24,12 @@ void sendReturn(char command, char* value) {
   int len = strlen(buf);
   if (strlen(returnBuffer) + strlen(buf) <= RETURN_BUFFER_SIZE) {
     strcat(returnBuffer, buf);
+  } else {
+    // allow blocking for a full buffer 
+    // so don't send long strings of stuff 
+    // while robot is balancing
+    sendReturnBuffer();
+    strcat(returnBuffer, buf);
   }
 }
 

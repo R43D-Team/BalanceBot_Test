@@ -84,7 +84,7 @@ PID_Settings speedSettings = {
   .outputMax = 5000,
   .outputMin = -5000,
   .direction = DIRECT
-}
+};
 
 
 // Used in Control Loop to enable PID from app and from loop in battery check
