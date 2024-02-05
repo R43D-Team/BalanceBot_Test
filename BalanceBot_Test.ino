@@ -81,8 +81,8 @@ PID_Settings speedSettings = {
   .Kp = 0.02,
   .Ki = 0.0,
   .Kd = 0.001,
-  .outputMax = 5000,
-  .outputMin = -5000,
+  .outputMax = 5,
+  .outputMin = -5,
   .direction = DIRECT
 };
 
@@ -302,6 +302,7 @@ void sendInitials() {
   sendReturn('S', speedSettings);
   sendReturn('c', imuIsCalibrated());
   sendReturn('E', enabled);
+  sendReturn('e', secondPIDEnabled);
   sendReturn('M', maxSpeed);
   sendReturn('m', minSpeed);
 }
@@ -325,6 +326,11 @@ void serveReturns() {
     if (angleSettings.setpoint != oldSetpoint) {
       sendReturn('A', 'S', angleSettings.setpoint);
       oldSetpoint = angleSettings.setpoint;
+    }
+    static double oldSpeedSetpoint = speedSettings.setpoint;
+    if (speedSettings.setpoint != oldSpeedSetpoint) {
+      sendReturn('S', 'S', speedSettings.setpoint);
+      oldSpeedSetpoint = speedSettings.setpoint;
     }
   }
 }
