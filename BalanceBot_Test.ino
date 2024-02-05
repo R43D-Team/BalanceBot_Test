@@ -186,7 +186,8 @@ void heartbeat() {
 
 double getCurrentSpeed() {
   // get an average of the speed of the two motors
-  return (leftStepper.getCurrentSpeed() + rightStepper.getCurrentSpeed()) / 2.0;
+  // subtract becasue one motor is backwards of the other
+  return (leftStepper.getCurrentSpeed() - rightStepper.getCurrentSpeed()) / 2.0;
 }
 
 // This function is called from controlLoop to apply the PID output
@@ -273,9 +274,10 @@ void controlLoop() {
 }
 
 double calculatePID() {
-  double angleDelta = speedPID.compute(getCurrentSpeed());
-  angleSettings.setpoint += angleDelta;
+  double angle = speedPID.compute(getCurrentSpeed());
+  angleSettings.setpoint = angle;
   double output = anglePID.compute(pitch);
+  return output;
 }
 
 float readBattery() {
@@ -322,6 +324,7 @@ void serveReturns() {
   } else if (currentTime - lastTiltTime >= tiltInterval) {
     lastTiltTime = currentTime;
     sendReturn('T', pitch);
+    sendReturn('s', getCurrentSpeed());
     static double oldSetpoint = angleSettings.setpoint;
     if (angleSettings.setpoint != oldSetpoint) {
       sendReturn('A', 'S', angleSettings.setpoint);
@@ -371,6 +374,7 @@ void parseCommand(char *command) {
           clearBiasStore();
           imuCalSaveTime = millis();  // so it will calibrate two minutes later.
         }
+        break;
 
       default:
         Serial.print("Unknown Message :");
