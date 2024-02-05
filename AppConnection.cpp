@@ -18,8 +18,8 @@ extern void sendInitials();
 char returnBuffer[RETURN_BUFFER_SIZE];
 
 void sendReturn(char command, char* value) {
-  char buf[16];
-  snprintf(buf, 16, "<%c,%s>", command, value);
+  char buf[32];
+  snprintf(buf, 32, "<%c,%s>", command, value);
 
   int len = strlen(buf);
   if (strlen(returnBuffer) + strlen(buf) <= RETURN_BUFFER_SIZE) {
@@ -34,16 +34,15 @@ void sendReturn(char command, char* value) {
 }
 
 void sendReturn(char command, char param, double value) {
-  char num[12];
+  char num[24];
   num[0] = param;
   num[1] = ',';
-  dtostrf(value, 2, 2, num + 2);
+  dtostrf(value, 2, 4, num + 2);
   sendReturn(command, num);
 }
 
 void sendReturn(char command, double value) {
-  // char buf[16];
-  char num[10];
+  char num[16];
   dtostrf(value, 2, 2, num);
   sendReturn(command, num);
 }

@@ -78,9 +78,9 @@ PID_Settings angleSettings = {
 #define EEPROM_SPEED_SETTINGS (128 + sizeof(PID_Settings_Store))
 PID_Settings speedSettings = {
   .setpoint = 0,
-  .Kp = 2.0,
+  .Kp = 0.02,
   .Ki = 0.0,
-  .Kd = 0.1,
+  .Kd = 0.001,
   .outputMax = 5000,
   .outputMin = -5000,
   .direction = DIRECT
@@ -247,6 +247,9 @@ void controlLoop() {
           standing = false;
           leftStepper.stop();
           rightStepper.stop();
+          angleSettings.setpoint = 0.0;
+          speedSettings.setpoint = 0.0;
+          sendReturn('A', 'S', angleSettings.setpoint);
         }
         if (standing) {
           // Only run the PID if standing.
