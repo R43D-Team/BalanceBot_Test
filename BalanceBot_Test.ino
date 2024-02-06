@@ -43,7 +43,7 @@ struct PID_Settings_Store {
 /*
 *  Pin Definitions
 */
-// #define NEWPINS
+#define NEWPINS
 // Select your pin configuration
 #ifdef NEWPINS
 const uint8_t enablePin = 10;
@@ -261,6 +261,9 @@ void controlLoop() {
         secondPIDEnabled = enableSecondPID;
         if (secondPIDEnabled) {
           anglePID.bumplessStart(getCurrentSpeed(), 0.0, 21);
+        } else {
+          // reset angle setpoint when speed PID turns off. 
+          angleSettings.setpoint = 0.0;
         }
         sendReturn('e', secondPIDEnabled);
       }
