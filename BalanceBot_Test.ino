@@ -35,7 +35,7 @@ BalanceBot_Test.ino  --  Test code for robot I'm building with @PickyBiker (foru
 /*
 *  Pin Definitions
 */
-#define NEWPINS
+// #define NEWPINS
 // Select your pin configuration
 #ifdef NEWPINS
 const uint8_t enablePin = 10;
@@ -180,8 +180,14 @@ void setup() {
 void loop() {
   handleClient();
   heartbeat();
+  // if(Serial.read() == 'E'){
+  //   enable = !enable;
+  //   Serial.print("Enable to ");
+  //   Serial.println(enable);
+  // }
   if (readBattery() < 10.0) {
     // Shut down motors and PID if battery is getting low
+    // Serial.println("Battery Kill");
     enable = false;
   }
   controlLoop();
