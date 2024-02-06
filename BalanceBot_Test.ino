@@ -183,7 +183,7 @@ void loop() {
   // }
   if (readBattery() < 10.0) {
     // Shut down motors and PID if battery is getting low
-    if(enabled){
+    if (enabled) {
       sendReturn('?', "Low Battery");
     }
     enable = false;
@@ -439,10 +439,20 @@ void handlePIDReturn(char *buf) {
       sendReturn(letter, 'm', settings->outputMin);
       break;
     case 'e':
+      unsigned int address;
+      if (letter == 'A') {
+        address = EEPROM_ANGLE_SETTINGS;
+      } else if (letter == 'S') {
+        address = EEPROM_SPEED_SETTINGS;
+      } else {
+        // Don't mess with EEPROM on mismatch
+        break;
+      }
+
       if (buf[5] == 'S') {
-        storePIDSettings(EEPROM_ANGLE_SETTINGS, *(settings));
+        storePIDSettings(address, *(settings));
       } else if (buf[5] == 'L') {
-        getPIDSettings(EEPROM_ANGLE_SETTINGS, *(settings));
+        getPIDSettings(address, *(settings));
         sendReturn(letter, *(settings));
       }
       break;
