@@ -30,6 +30,16 @@ BalanceBot_Test.ino  --  Test code for robot I'm building with @PickyBiker (foru
 #include "IMU_Functions.h"
 #include "AppConnection.h"
 
+struct PID_Settings_Store {
+  byte header = 0x42;
+  unsigned char settings[sizeof(PID_Settings)];
+  byte sum = 0;
+
+  void updateSum();
+  bool validateSum();
+  unsigned char calculateSum();
+};
+
 /*
 *  Pin Definitions
 */
@@ -145,9 +155,14 @@ void setup() {
   analogReference(AR_INTERNAL);
   // Load PID Settings
   if (getPIDSettings(EEPROM_ANGLE_SETTINGS, angleSettings)) {
-    Serial.println("Good PID Settings");
+    Serial.println("Good Angle PID Settings");
   } else {
-    Serial.println("No PID Settings Found");
+    Serial.println("No Angle PID Settings Found");
+  }
+  if (getPIDSettings(EEPROM_SPEED_SETTINGS, speedSettings)) {
+    Serial.println("Good Speed PID Settings");
+  } else {
+    Serial.println("No Speed PID Settings Found");
   }
   // Three more flashes at end of setup.
   for (int i = 0; i < 3; i++) {
@@ -168,7 +183,9 @@ void loop() {
   // }
   if (readBattery() < 10.0) {
     // Shut down motors and PID if battery is getting low
-    // Serial.println("Battery Kill");
+    if(enabled){
+      sendReturn('?', "Low Battery");
+    }
     enable = false;
   }
   controlLoop();
@@ -288,7 +305,7 @@ double calculatePID() {
 
 float readBattery() {
   // The 12.915 was a manually calibrated value
-  return analogRead(A3) * (1.45 / 1023.0) * 12.915;
+  return analogRead(A3) * (1.45 / 1023.0) * 13.897;
 }
 
 /*
@@ -300,12 +317,6 @@ float readBattery() {
 // Called when first making connection with app
 void sendInitials() {
   sendReturn('?', "R43D Ready");
-  // sendReturn('A', 'P', angleSettings.Kp);
-  // sendReturn('A', 'D', angleSettings.Kd);
-  // sendReturn('A', 'I', angleSettings.Ki);
-  // sendReturn('A', 'M', angleSettings.outputMax);
-  // sendReturn('A', 'm', angleSettings.outputMin);
-  // sendReturn('A', 'S', angleSettings.setpoint);
   sendReturn('A', angleSettings);
   sendReturn('S', speedSettings);
   sendReturn('c', imuIsCalibrated());
@@ -441,15 +452,7 @@ void handlePIDReturn(char *buf) {
   }
 }
 
-struct PID_Settings_Store {
-  byte header = 0x42;
-  unsigned char settings[sizeof(PID_Settings)];
-  byte sum = 0;
 
-  void updateSum();
-  bool validateSum();
-  unsigned char calculateSum();
-};
 
 unsigned char PID_Settings_Store::calculateSum() {
   byte rv = header;
