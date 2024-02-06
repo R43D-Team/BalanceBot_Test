@@ -30,6 +30,8 @@ BalanceBot_Test.ino  --  Test code for robot I'm building with @PickyBiker (foru
 #include "IMU_Functions.h"
 #include "AppConnection.h"
 
+#define CHECK_STEPPERS
+
 /*
 *  Pin Definitions
 */
@@ -139,6 +141,23 @@ void setup() {
   rightStepper.init();
   leftStepper.setSpeed(0);
   rightStepper.setSpeed(0);
+
+  #ifdef CHECK_STEPPERS
+  delay(5000);
+  Serial.println("Checkking Steppers at 5000");
+
+  digitalWrite(enablePin, LOW);
+
+  leftStepper.setSpeed(5000);
+  rightStepper.setSpeed(5000);
+  delay(5000);
+
+  leftStepper.setSpeed(0);
+  rightStepper.setSpeed(0);
+
+  digitalWrite(enablePin, HIGH);
+  #endif
+
   // take an initial pitch reading
   pitch = readPitch();
   // Use 1.45V internal reference for stable battery voltage readings
