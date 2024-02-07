@@ -33,11 +33,11 @@ void sendReturn(char command, char* value) {
   }
 }
 
-void sendReturn(char command, char param, double value) {
+void sendReturn(char command, char param, double value, double multiplier) {
   char num[24];
   num[0] = param;
   num[1] = ',';
-  dtostrf(value, 2, 4, num + 2);
+  dtostrf((value * multiplier), 2, 2, num + 2);
   sendReturn(command, num);
 }
 
@@ -53,14 +53,14 @@ void sendReturn(char command, boolean value) {
   sendReturn(command, buf);
 }
 
-void sendReturn(char command, PID_Settings& settings) {
+void sendReturn(char command, PID_Settings& settings, double multiplier) {
 
-  sendReturn(command, 'P', settings.Kp);
-  sendReturn(command, 'D', settings.Kd);
-  sendReturn(command, 'I', settings.Ki);
-  sendReturn(command, 'M', settings.outputMax);
-  sendReturn(command, 'm', settings.outputMin);
-  sendReturn(command, 'S', settings.setpoint);
+  sendReturn(command, 'P', settings.Kp, multiplier);
+  sendReturn(command, 'D', settings.Kd, multiplier);
+  sendReturn(command, 'I', settings.Ki, multiplier);
+  sendReturn(command, 'M', settings.outputMax, 1.0);
+  sendReturn(command, 'm', settings.outputMin, 1.0);
+  sendReturn(command, 'S', settings.setpoint, 1.0);
 }
 
 void sendReturnBuffer() {

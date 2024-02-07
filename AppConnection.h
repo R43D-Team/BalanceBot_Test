@@ -7,10 +7,10 @@
 #include "PID_DG.h"
 
 void sendReturn(char command, char* value);
-void sendReturn(char command, char param, double value);
+void sendReturn(char command, char param, double value, double multiplier = 1.0);
 void sendReturn(char command, double value);
 void sendReturn(char command, boolean value);
-void sendReturn(char command, PID_Settings &settings);
+void sendReturn(char command, PID_Settings &settings, double multiplier);
 void sendReturnBuffer();
 
 void handleClient();

@@ -43,7 +43,7 @@ struct PID_Settings_Store {
 /*
 *  Pin Definitions
 */
-#define NEWPINS
+// #define NEWPINS
 // Select your pin configuration
 #ifdef NEWPINS
 const uint8_t enablePin = 10;
@@ -75,6 +75,7 @@ float speed;
 *  PID Settings
 */
 #define EEPROM_ANGLE_SETTINGS (128)
+double anglePIDReportMultiplier = 1.0;
 PID_Settings angleSettings = {
   .setpoint = 0,
   .Kp = 35.0,
@@ -86,6 +87,7 @@ PID_Settings angleSettings = {
 };
 
 #define EEPROM_SPEED_SETTINGS (128 + sizeof(PID_Settings_Store))
+double speedPIDReportMultiplier = 10000.0;
 PID_Settings speedSettings = {
   .setpoint = 0,
   .Kp = 0.02,
@@ -264,6 +266,7 @@ void controlLoop() {
         } else {
           // reset angle setpoint when speed PID turns off. 
           angleSettings.setpoint = 0.0;
+          sendReturn('A', 'S', angleSettings.setpoint);
         }
         sendReturn('e', secondPIDEnabled);
       }
@@ -320,8 +323,8 @@ float readBattery() {
 // Called when first making connection with app
 void sendInitials() {
   sendReturn('?', "R43D Ready");
-  sendReturn('A', angleSettings);
-  sendReturn('S', speedSettings);
+  sendReturn('A', angleSettings, anglePIDReportMultiplier);
+  sendReturn('S', speedSettings, speedPIDReportMultiplier);
   sendReturn('c', imuIsCalibrated());
   sendReturn('E', enabled);
   sendReturn('e', secondPIDEnabled);
@@ -406,10 +409,13 @@ void parseCommand(char *command) {
 void handlePIDReturn(char *buf) {
   PID_Settings *settings;
   char letter = buf[1];
+  double multiplier = 1.0;
   if (letter == 'A') {
     settings = &angleSettings;
+    multiplier = anglePIDReportMultiplier;
   } else if (letter == 'S') {
     settings = &speedSettings;
+    multiplier = speedPIDReportMultiplier;
   } else {
     // bail out, it doesn't match
     return;
@@ -422,16 +428,16 @@ void handlePIDReturn(char *buf) {
       // sendReturn(letter, 'S', settings->setpoint);
       break;
     case 'P':
-      settings->Kp = atof(buf + 5);
-      sendReturn(letter, 'P', settings->Kp);
+      settings->Kp = atof(buf + 5)/multiplier;
+      sendReturn(letter, 'P', settings->Kp, multiplier);
       break;
     case 'I':
-      settings->Ki = atof(buf + 5);
-      sendReturn(letter, 'I', settings->Ki);
+      settings->Ki = atof(buf + 5)/multiplier;
+      sendReturn(letter, 'I', settings->Ki, multiplier);
       break;
     case 'D':
-      settings->Kd = atof(buf + 5);
-      sendReturn(letter, 'D', settings->Kd);
+      settings->Kd = atof(buf + 5)/multiplier;
+      sendReturn(letter, 'D', settings->Kd, multiplier);
       break;
     case 'M':
       settings->outputMax = atof(buf + 5);
@@ -456,7 +462,7 @@ void handlePIDReturn(char *buf) {
         storePIDSettings(address, *(settings));
       } else if (buf[5] == 'L') {
         getPIDSettings(address, *(settings));
-        sendReturn(letter, *(settings));
+        sendReturn(letter, *(settings), multiplier);
       }
       break;
 
