@@ -8,7 +8,10 @@ v0.0.4 is the new app design.  Before this everything was set up just for experi
 
 v0.0.5 adds the second PID controller for speed.  (Not a very good version)
 
-Add report for battery low
-Add recover speed settings from eeprom in setup
+Report for battery low
+Recover speed settings from eeprom in setup
+Changes to PID settings report functions
+
+
 
 
