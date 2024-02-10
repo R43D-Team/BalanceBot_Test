@@ -43,7 +43,7 @@ struct PID_Settings_Store {
 /*
 *  Pin Definitions
 */
-// #define NEWPINS
+#define NEWPINS
 // Select your pin configuration
 #ifdef NEWPINS
 const uint8_t enablePin = 10;
@@ -68,7 +68,8 @@ GPT_Stepper rightStepper(rightStepPin, rightDirPin, 34000, false);
 
 float maxSpeed = 10000.0;
 float minSpeed = 10.0;
-float speed;
+float speed = 0.0;
+float steering = 0.0;
 
 
 /*
@@ -228,8 +229,8 @@ void accelerate(double acc) {
   if (abs(speed) < minSpeed) {
     speed = 0;
   }
-  leftStepper.setSpeed(speed);
-  rightStepper.setSpeed(speed);
+  leftStepper.setSpeed(speed - steering);
+  rightStepper.setSpeed(speed + steering);
 }
 
 
@@ -377,6 +378,10 @@ void parseCommand(char *command) {
       case 'A':
       case 'S':
         handlePIDReturn(command);
+        break;
+      case 'D':
+        steering = atof(command +3);
+        sendReturn('D', steering);
         break;
       case 'E':
         if (command[3] == '0') {
