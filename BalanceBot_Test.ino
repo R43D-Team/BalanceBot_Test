@@ -43,20 +43,20 @@ struct PID_Settings_Store {
 /*
 *  Pin Definitions
 */
-#define NEWPINS
+// #define NEWPINS
 // Select your pin configuration
 #ifdef NEWPINS
 const uint8_t enablePin = 10;
-const uint8_t rightStepPin = 8;
-const uint8_t rightDirPin = 9;
-const uint8_t leftStepPin = 12;
-const uint8_t leftDirPin = 11;
+const uint8_t rightStepPin = 12;
+const uint8_t rightDirPin = 11;
+const uint8_t leftStepPin = 8;
+const uint8_t leftDirPin = 9;
 #else
 const uint8_t enablePin = 8;
-const uint8_t rightStepPin = 2;
-const uint8_t rightDirPin = 5;
-const uint8_t leftStepPin = 4;
-const uint8_t leftDirPin = 7;
+const uint8_t rightStepPin = 4;
+const uint8_t rightDirPin = 7;
+const uint8_t leftStepPin = 2;
+const uint8_t leftDirPin = 5;
 #endif
 
 /*
@@ -167,6 +167,7 @@ void setup() {
   } else {
     Serial.println("No Speed PID Settings Found");
   }
+
   // Three more flashes at end of setup.
   for (int i = 0; i < 3; i++) {
     delay(100);
@@ -213,13 +214,13 @@ void heartbeat() {
 double getCurrentSpeed() {
   // get an average of the speed of the two motors
   // subtract becasue one motor is backwards of the other
-  return (leftStepper.getCurrentSpeed() - rightStepper.getCurrentSpeed()) / 2.0;
+  return (leftStepper.getCurrentSpeed() + rightStepper.getCurrentSpeed()) / 2.0;
 }
 
 // This function is called from controlLoop to apply the PID output
 void accelerate(double acc) {
   // I keep forgetting to fix the backwards output
-  speed -= acc;
+  speed += acc;
   if (speed > maxSpeed) {
     speed = maxSpeed;
   }
@@ -229,8 +230,8 @@ void accelerate(double acc) {
   if (abs(speed) < minSpeed) {
     speed = 0;
   }
-  leftStepper.setSpeed(speed - steering);
-  rightStepper.setSpeed(speed + steering);
+  leftStepper.setSpeed(speed + steering);
+  rightStepper.setSpeed(speed - steering);
 }
 
 
@@ -288,7 +289,7 @@ void controlLoop() {
             accelerate(calculatePID());
           } else {
             // Get the output for the current pitch value
-            double out = anglePID.compute(pitch);
+            double out = -anglePID.compute(pitch);
             // Call accelerate with the output.
             accelerate(out);
           }
@@ -304,9 +305,10 @@ void controlLoop() {
 }
 
 double calculatePID() {
+  //  use negative speed because motors are backwards
   double angle = speedPID.compute(getCurrentSpeed());
   angleSettings.setpoint = angle;
-  double output = anglePID.compute(pitch);
+  double output = -anglePID.compute(pitch);
   return output;
 }
 
