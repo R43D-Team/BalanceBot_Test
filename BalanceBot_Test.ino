@@ -27,6 +27,8 @@ BalanceBot_Test.ino  --  Test code for robot I'm building with @PickyBiker (foru
 
 #include "WiFiS3.h"
 
+
+#include "R43D_Constants.h"
 #include "IMU_Functions.h"
 #include "AppConnection.h"
 #include "EE_Storage.h"
@@ -68,7 +70,7 @@ float steering = 0.0;
 /*
 *  PID Settings
 */
-#define EEPROM_ANGLE_SETTINGS (128)
+
 double anglePIDReportMultiplier = 1.0;
 PID_Settings angleSettings = {
   .setpoint = 0,
@@ -80,7 +82,7 @@ PID_Settings angleSettings = {
   .direction = DIRECT
 };
 
-#define EEPROM_SPEED_SETTINGS (128 + sizeof(PID_Settings_Store))
+
 double speedPIDReportMultiplier = 10000.0;
 PID_Settings speedSettings = {
   .setpoint = 0,
@@ -181,7 +183,7 @@ void loop() {
   if (readBattery() < 10.0) {
     // Shut down motors and PID if battery is getting low
     if (enabled) {
-      sendReturn('?', "Low Battery");
+      sendReturn(CC_MESSAGE, "Low Battery");
     }
     enable = false;
   }
@@ -251,7 +253,7 @@ void controlLoop() {
           leftStepper.stop();
           rightStepper.stop();
         }
-        sendReturn('E', enabled);
+        sendReturn(CC_MINSPEED, enabled);
       }
       // handle enable state change for second PID
       if (enableSecondPID != secondPIDEnabled) {
@@ -261,9 +263,9 @@ void controlLoop() {
         } else {
           // reset angle setpoint when speed PID turns off. 
           angleSettings.setpoint = 0.0;
-          sendReturn('A', 'S', angleSettings.setpoint);
+          sendReturn(CC_ANGLEPID, PC_SETPOINT, angleSettings.setpoint);
         }
-        sendReturn('e', secondPIDEnabled);
+        sendReturn(CC_SECONDENABLE, secondPIDEnabled);
       }
       // if still enabled
       if (enabled) {
@@ -274,7 +276,7 @@ void controlLoop() {
           rightStepper.stop();
           angleSettings.setpoint = 0.0;
           speedSettings.setpoint = 0.0;
-          sendReturn('A', 'S', angleSettings.setpoint);
+          sendReturn(CC_ANGLEPID, PC_SETPOINT, angleSettings.setpoint);
         }
         if (standing) {
           // Only run the PID if standing.
@@ -318,14 +320,14 @@ float readBattery() {
 
 // Called when first making connection with app
 void sendInitials() {
-  sendReturn('?', "R43D Ready");
-  sendReturn('A', angleSettings, anglePIDReportMultiplier);
-  sendReturn('S', speedSettings, speedPIDReportMultiplier);
-  sendReturn('c', imuIsCalibrated());
-  sendReturn('E', enabled);
-  sendReturn('e', secondPIDEnabled);
-  sendReturn('M', maxSpeed);
-  sendReturn('m', minSpeed);
+  sendReturn(CC_MESSAGE, "R43D Ready");
+  sendReturn(CC_ANGLEPID, angleSettings, anglePIDReportMultiplier);
+  sendReturn(CC_SPEEDPID, speedSettings, speedPIDReportMultiplier);
+  sendReturn(CC_IMU_CAL, imuIsCalibrated());
+  sendReturn(CC_MINSPEED, enabled);
+  sendReturn(CC_SECONDENABLE, secondPIDEnabled);
+  sendReturn(CC_MAXSPEED, maxSpeed);
+  sendReturn(CC_MINSPEED, minSpeed);
 }
 
 
@@ -339,19 +341,19 @@ void serveReturns() {
 
   if (currentTime - lastBatteryTime >= batteryInterval) {
     lastBatteryTime = currentTime;
-    sendReturn('B', readBattery());
+    sendReturn(CC_VBATT, readBattery());
   } else if (currentTime - lastTiltTime >= tiltInterval) {
     lastTiltTime = currentTime;
-    sendReturn('T', pitch);
-    sendReturn('s', getCurrentSpeed());
+    sendReturn(CC_TILT, pitch);
+    sendReturn(CC_SPEED, getCurrentSpeed());
     static double oldSetpoint = angleSettings.setpoint;
     if (angleSettings.setpoint != oldSetpoint) {
-      sendReturn('A', 'S', angleSettings.setpoint);
+      sendReturn(CC_ANGLEPID, PC_SETPOINT, angleSettings.setpoint);
       oldSetpoint = angleSettings.setpoint;
     }
     static double oldSpeedSetpoint = speedSettings.setpoint;
     if (speedSettings.setpoint != oldSpeedSetpoint) {
-      sendReturn('S', 'S', speedSettings.setpoint);
+      sendReturn(CC_SPEEDPID, PC_SETPOINT, speedSettings.setpoint);
       oldSpeedSetpoint = speedSettings.setpoint;
     }
   }
@@ -364,35 +366,35 @@ void parseCommand(char *command) {
   // Serial.println(command);
   if (command[0] == '<') {
     switch (command[1]) {
-      case 'M':
+      case CC_MAXSPEED:
         maxSpeed = atof(command + 3);
         break;
-      case 'm':
+      case CC_MINSPEED:
         minSpeed = atof(command + 3);
         break;
-      case 'A':
-      case 'S':
+      case CC_ANGLEPID:
+      case CC_SPEEDPID:
         handlePIDReturn(command);
         break;
-      case 'D':
+      case CC_DIRECTION:
         steering = atof(command +3);
-        sendReturn('D', steering);
+        sendReturn(CC_DIRECTION, steering);
         break;
-      case 'E':
+      case CC_ENABLE:
         if (command[3] == '0') {
           enable = false;
         } else {
           enable = true;
         }
         break;
-      case 'e':
+      case CC_SECONDENABLE:
         if (command[3] == '0') {
           enableSecondPID = false;
         } else {
           enableSecondPID = true;
         }
         break;
-      case 'c':
+      case CC_IMU_CAL:
         if (command[3] == '0') {
           clearBiasStore();
           imuCalSaveTime = millis();  // so it will calibrate two minutes later.
@@ -410,10 +412,10 @@ void handlePIDReturn(char *buf) {
   PID_Settings *settings;
   char letter = buf[1];
   double multiplier = 1.0;
-  if (letter == 'A') {
+  if (letter == CC_ANGLEPID) {
     settings = &angleSettings;
     multiplier = anglePIDReportMultiplier;
-  } else if (letter == 'S') {
+  } else if (letter == CC_SPEEDPID) {
     settings = &speedSettings;
     multiplier = speedPIDReportMultiplier;
   } else {
@@ -421,37 +423,37 @@ void handlePIDReturn(char *buf) {
     return;
   }
   switch (buf[3]) {
-    case 'S':
+    case PC_SETPOINT:
       settings->setpoint = atof(buf + 5);
       // This changes too fast to send back every time.
       //  It's handled in serveReturns
-      // sendReturn(letter, 'S', settings->setpoint);
+      // sendReturn(letter, PC_SETPOINT, settings->setpoint);
       break;
-    case 'P':
+    case PC_KP:
       settings->Kp = atof(buf + 5)/multiplier;
-      sendReturn(letter, 'P', settings->Kp, multiplier);
+      sendReturn(letter, PC_KP, settings->Kp, multiplier);
       break;
-    case 'I':
+    case PC_KI:
       settings->Ki = atof(buf + 5)/multiplier;
-      sendReturn(letter, 'I', settings->Ki, multiplier);
+      sendReturn(letter, PC_KI, settings->Ki, multiplier);
       break;
-    case 'D':
+    case PC_KD:
       settings->Kd = atof(buf + 5)/multiplier;
-      sendReturn(letter, 'D', settings->Kd, multiplier);
+      sendReturn(letter, PC_KD, settings->Kd, multiplier);
       break;
-    case 'M':
+    case PC_OUTMAX:
       settings->outputMax = atof(buf + 5);
-      sendReturn(letter, 'M', settings->outputMax);
+      sendReturn(letter, PC_OUTMAX, settings->outputMax);
       break;
-    case 'm':
+    case PC_OUTMIN:
       settings->outputMin = atof(buf + 5);
-      sendReturn(letter, 'm', settings->outputMin);
+      sendReturn(letter, PC_OUTMIN, settings->outputMin);
       break;
-    case 'e':
+    case PC_EEPROM:
       unsigned int address;
-      if (letter == 'A') {
+      if (letter == CC_ANGLEPID) {
         address = EEPROM_ANGLE_SETTINGS;
-      } else if (letter == 'S') {
+      } else if (letter == CC_SPEEDPID) {
         address = EEPROM_SPEED_SETTINGS;
       } else {
         // Don't mess with EEPROM on mismatch
