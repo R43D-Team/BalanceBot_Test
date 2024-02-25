@@ -124,6 +124,7 @@ unsigned long heartDelay = 1000;
 
 
 uint32_t imuCalSaveTime = 0;
+float batteryCalibrationFactor = 0.01349;
 
 void stepperTest() {
   digitalWrite(enablePin, LOW);
@@ -212,6 +213,11 @@ void loop() {
       enable = !enable;
       Serial.print("Setting enable to ");
       Serial.println(enable? "True":"False");
+    } else if (c == 'B'){
+      Serial.print("Raw Battery Analog ");
+      Serial.println(analogRead(3));
+      Serial.print("Calculated Reading ");
+      Serial.println(readBattery());
     }
   }
   if (readBattery() < 10.0) {
@@ -343,7 +349,7 @@ double calculatePID() {
 
 float readBattery() {
   // The 12.915 was a manually calibrated value
-  return analogRead(A3) * (1.45 / 1023.0) * 13.897;
+  return analogRead(A3) * batteryCalibrationFactor;
 }
 
 /*
