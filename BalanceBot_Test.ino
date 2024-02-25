@@ -201,9 +201,18 @@ void setup() {
 void loop() {
   handleClient();
   heartbeat();
-  if(Serial.read() == '@'){
-    Serial.println("Stepper Test");
-    stepperTest();
+  // Serial backdoor for testing
+  if (Serial.available()) {
+    Serial.println("Serial Backdoor");
+    char c = Serial.read();
+    if (c == '@') {
+      Serial.println("Stepper Test");
+      stepperTest();
+    } else if (c == 'E'){
+      enable = !enable;
+      Serial.print("Setting enable to ");
+      Serial.println(enable? "True":"False");
+    }
   }
   if (readBattery() < 10.0) {
     // Shut down motors and PID if battery is getting low
