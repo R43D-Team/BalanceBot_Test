@@ -38,15 +38,22 @@ BalanceBot_Test.ino  --  Test code for robot I'm building with @PickyBiker (foru
 /*
 *  Pin Definitions
 */
-// #define NEWPINS
+#define NEWPINS
 // Select your pin configuration
-#ifdef NEWPINS
+#if defined NEWPINS  // New shield board with hole
+
+const uint8_t enablePin = 10;
+const uint8_t rightStepPin = 8;
+const uint8_t rightDirPin = 9;
+const uint8_t leftStepPin = 11;
+const uint8_t leftDirPin = 12;
+#elif defined PROTOPINS  // Home Built Protoshield
 const uint8_t enablePin = 10;
 const uint8_t rightStepPin = 12;
 const uint8_t rightDirPin = 11;
 const uint8_t leftStepPin = 8;
 const uint8_t leftDirPin = 9;
-#else
+#else                    // Modified CNC shield
 const uint8_t enablePin = 8;
 const uint8_t rightStepPin = 4;
 const uint8_t rightDirPin = 7;
@@ -118,6 +125,25 @@ unsigned long heartDelay = 1000;
 
 uint32_t imuCalSaveTime = 0;
 
+void stepperTest() {
+  digitalWrite(enablePin, LOW);
+  Serial.println("Left Forward");
+  leftStepper.setSpeed(5000);
+  delay(5000);
+  leftStepper.setSpeed(-5000);
+  Serial.println("Left Backward");
+  delay(5000);
+  leftStepper.setSpeed(0.0);
+  rightStepper.setSpeed(5000);
+  Serial.println("Right Forward");
+  delay(5000);
+  rightStepper.setSpeed(-5000);
+  Serial.println("Right Backward");
+  delay(5000);
+  rightStepper.setSpeed(0.0);
+  Serial.println("Test Complete");
+  digitalWrite(enablePin, HIGH);
+}
 
 void setup() {
   //  Three flashes to start program:
@@ -175,11 +201,10 @@ void setup() {
 void loop() {
   handleClient();
   heartbeat();
-  // if(Serial.read() == 'E'){
-  //   enable = !enable;
-  //   Serial.print("Enable to ");
-  //   Serial.println(enable);
-  // }
+  if(Serial.read() == '@'){
+    Serial.println("Stepper Test");
+    stepperTest();
+  }
   if (readBattery() < 10.0) {
     // Shut down motors and PID if battery is getting low
     if (enabled) {
@@ -261,7 +286,7 @@ void controlLoop() {
         if (secondPIDEnabled) {
           anglePID.bumplessStart(getCurrentSpeed(), 0.0, 21);
         } else {
-          // reset angle setpoint when speed PID turns off. 
+          // reset angle setpoint when speed PID turns off.
           angleSettings.setpoint = 0.0;
           sendReturn(CC_ANGLEPID, PC_SETPOINT, angleSettings.setpoint);
         }
@@ -377,7 +402,7 @@ void parseCommand(char *command) {
         handlePIDReturn(command);
         break;
       case CC_DIRECTION:
-        steering = atof(command +3);
+        steering = atof(command + 3);
         sendReturn(CC_DIRECTION, steering);
         break;
       case CC_ENABLE:
@@ -430,15 +455,15 @@ void handlePIDReturn(char *buf) {
       // sendReturn(letter, PC_SETPOINT, settings->setpoint);
       break;
     case PC_KP:
-      settings->Kp = atof(buf + 5)/multiplier;
+      settings->Kp = atof(buf + 5) / multiplier;
       sendReturn(letter, PC_KP, settings->Kp, multiplier);
       break;
     case PC_KI:
-      settings->Ki = atof(buf + 5)/multiplier;
+      settings->Ki = atof(buf + 5) / multiplier;
       sendReturn(letter, PC_KI, settings->Ki, multiplier);
       break;
     case PC_KD:
-      settings->Kd = atof(buf + 5)/multiplier;
+      settings->Kd = atof(buf + 5) / multiplier;
       sendReturn(letter, PC_KD, settings->Kd, multiplier);
       break;
     case PC_OUTMAX:
@@ -472,4 +497,3 @@ void handlePIDReturn(char *buf) {
       break;
   }
 }
-
