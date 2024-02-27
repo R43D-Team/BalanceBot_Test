@@ -209,11 +209,11 @@ void loop() {
     if (c == '@') {
       Serial.println("Stepper Test");
       stepperTest();
-    } else if (c == 'E'){
+    } else if (c == 'E') {
       enable = !enable;
       Serial.print("Setting enable to ");
-      Serial.println(enable? "True":"False");
-    } else if (c == 'B'){
+      Serial.println(enable ? "True" : "False");
+    } else if (c == 'B') {
       Serial.print("Raw Battery Analog ");
       Serial.println(analogRead(3));
       Serial.print("Calculated Reading ");
@@ -232,6 +232,7 @@ void loop() {
   if (!imuIsCalibrated() && (millis() - imuCalSaveTime > 120000)) {
     saveBiasStore();
     imuCalSaveTime = millis();
+    sendReturn(CC_IMU_CAL, imuIsCalibrated());
   }
 }
 
@@ -293,7 +294,7 @@ void controlLoop() {
           leftStepper.stop();
           rightStepper.stop();
         }
-        sendReturn(CC_MINSPEED, enabled);
+        sendReturn(CC_ENABLE, enabled);
       }
       // handle enable state change for second PID
       if (enableSecondPID != secondPIDEnabled) {
@@ -364,7 +365,7 @@ void sendInitials() {
   sendReturn(CC_ANGLEPID, angleSettings, anglePIDReportMultiplier);
   sendReturn(CC_SPEEDPID, speedSettings, speedPIDReportMultiplier);
   sendReturn(CC_IMU_CAL, imuIsCalibrated());
-  sendReturn(CC_MINSPEED, enabled);
+  sendReturn(CC_ENABLE, enabled);
   sendReturn(CC_SECONDENABLE, secondPIDEnabled);
   sendReturn(CC_MAXSPEED, maxSpeed);
   sendReturn(CC_MINSPEED, minSpeed);
@@ -439,6 +440,7 @@ void parseCommand(char *command) {
           clearBiasStore();
           imuCalSaveTime = millis();  // so it will calibrate two minutes later.
         }
+        sendReturn(CC_IMU_CAL, imuIsCalibrated());
         break;
 
       default:

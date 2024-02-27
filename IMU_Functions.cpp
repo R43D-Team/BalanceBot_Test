@@ -203,6 +203,7 @@ void clearBiasStore() {
   biasStore store;
   store.header = 0;
   EEPROM.put(EEPROM_BIAS_STORE, store);
+  imuCalibrated = false;
 }
 
 
